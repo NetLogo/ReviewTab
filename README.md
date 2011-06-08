@@ -8,7 +8,7 @@ Requires NetLogo 5.0beta4 (coming soon).
 
 Move the ReviewTab directory to your 5.0beta4 plugins directory.
 
-Run build.sh.
+Change to the ReviewTab directory and run `make`.
 
 If compilation succeeds, `ReviewTab.jar` will be created.
 
