@@ -10,8 +10,15 @@ import org.nlogo.hubnet.client.ClientRenderer
 
 // The view widget in the client.
 class RunsView(clientPanel: RunsPanel) extends Widget with ViewWidgetInterface with ViewSettings {
-  val world = new ClientWorld()
-  val renderer = new ClientRenderer(world)
+  var world = new ClientWorld()
+
+  def newWorld(){
+    world = new ClientWorld()
+    world.setTrailDrawer(renderer.trailDrawer())
+    renderer = new ClientRenderer(world)
+  }
+
+  var renderer = new ClientRenderer(world)
   def isHeadless = false
   private var _displayOn = false
   def setDisplayOn(on: Boolean) { _displayOn = on; repaint() }

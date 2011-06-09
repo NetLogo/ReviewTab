@@ -7,6 +7,7 @@ import java.io.{ ByteArrayOutputStream, ByteArrayInputStream,
                  FileOutputStream, FileInputStream }
 import javax.imageio.ImageIO
 import org.nlogo.hubnet.protocol.HandshakeFromServer
+import org.nlogo.hubnet.mirroring.DiffBuffer
 
 object Run {
   def save(path: String, runs: Seq[Run]) {
@@ -24,18 +25,14 @@ object Run {
 @SerialVersionUID(0)
 class Run(var name: String,
   var handshake:HandshakeFromServer,
-  var images: ArrayBuffer[Array[Byte]] = ArrayBuffer(),
+  var diffs: ArrayBuffer[DiffBuffer] = ArrayBuffer(),
   var frameNumber:Int = 0,
   var annotations:String = "") extends Serializable {
 
-  def addFrame(b:BufferedImage) = {
-    val out = new ByteArrayOutputStream()
-    ImageIO.write(b, "PNG", out)
-    images += out.toByteArray
+  def addFrame(diff:DiffBuffer) = {
+    diffs :+= diff
   }
-  def currentImage: BufferedImage =
-    ImageIO.read(new ByteArrayInputStream(images(frameNumber)))
-  def max = images.size - 1
+  def max = diffs.size - 1
   // since JList will display this to the user
   override def toString = name
 }

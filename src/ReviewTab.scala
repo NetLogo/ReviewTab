@@ -12,10 +12,11 @@ import org.nlogo.swing.PimpedJButton
 import org.nlogo.util.Exceptions.ignoring
 import org.nlogo.window.{Events, GUIWorkspace}
 import org.nlogo.window.Events.LoadSectionEvent
-import org.nlogo.hubnet.protocol.{HandshakeFromServer, ClientInterface}
-import org.nlogo.api.{LogoList, ModelSection, ModelReader, NetLogoAdapter}
 import org.nlogo.hubnet.client.ClientAWTEvent
 import scala.collection.JavaConverters._
+import org.nlogo.hubnet.mirroring.ServerWorld
+import org.nlogo.api._
+import org.nlogo.hubnet.protocol.{ViewUpdate, HandshakeFromServer, ClientInterface}
 
 class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionEvent.Handler {
 
@@ -31,14 +32,25 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
     addChangeListener(new ChangeListener{
       def stateChanged(p1: ChangeEvent) {
         currentlyVisibleRun.foreach{ r =>
-          r.frameNumber = slider.getValue
-          invokeLater(() => view.repaint())
+          invokeLater{() =>
+            r.frameNumber = slider.getValue
+            view.viewWidget.newWorld()
+            //for(d<-r.diffs.take(r.frameNumber))
+            getToolkit.getSystemEventQueue.postEvent(new ClientAWTEvent(view, new ViewUpdate(r.diffs(r.frameNumber).toByteArray), true))
+            view.repaint()
+          }
         }
       }
     })
   }
 
   var widgetDescriptions: Array[String] = Array()
+
+  private val world = workspace.world()
+  private var worldBuffer = new ServerWorld(
+    if(workspace.getPropertiesInterface != null) workspace.getPropertiesInterface
+    else new WorldPropertiesInterface { def fontSize = 10 } // TODO BAD HACK! JC 12/28/10
+  )
 
   private def createClientInterfaceSpec: ClientInterface = {
     val widgets = ModelReader.parseWidgets(widgetDescriptions).asScala.map(_.asScala)
@@ -65,7 +77,9 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
       }
       workspace.updateUI()
 
-      // TODO: create ViewUpdate with ServerWorld and add it to run
+      // TRUE = reset entire world. this is bad. just hacking for now.
+      val diff = worldBuffer.updateWorld(world, true)
+      lastRun.addFrame(diff)
 
       for(r <- currentlyVisibleRun)
         if(r eq lastRun)
