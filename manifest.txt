@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Tab-Name: Review
+Class-Name: org.nlogo.review.ReviewTab
+NetLogo-API-Version: 5.0
