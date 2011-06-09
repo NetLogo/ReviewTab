@@ -26,7 +26,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
   def currentlyVisibleRun: Option[Run] =
     Option(runList.getSelectedValue).map(_.asInstanceOf[Run])
 
-  val view = new RunsPanel(new org.nlogo.hubnet.client.EditorFactory(workspace), workspace)
+  var view = new RunsPanel(new org.nlogo.hubnet.client.EditorFactory(workspace), workspace)
 
   val scrubber = new JSlider{ slider =>
     addChangeListener(new ChangeListener{
@@ -34,9 +34,10 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
         currentlyVisibleRun.foreach{ r =>
           invokeLater{() =>
             r.frameNumber = slider.getValue
-            view.viewWidget.newWorld()
-            //for(d<-r.diffs.take(r.frameNumber))
-            getToolkit.getSystemEventQueue.postEvent(new ClientAWTEvent(view, new ViewUpdate(r.diffs(r.frameNumber).toByteArray), true))
+            view.viewWidget.world.reset()
+            for((d,i)<-r.diffs.take(r.frameNumber).zipWithIndex) {
+              getToolkit.getSystemEventQueue.postEvent(new ClientAWTEvent(view, new ViewUpdate(d.toByteArray), true))
+            }
             view.repaint()
           }
         }
@@ -47,7 +48,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
   var widgetDescriptions: Array[String] = Array()
 
   private val world = workspace.world()
-  private var worldBuffer = new ServerWorld(
+  private val worldBuffer = new ServerWorld(
     if(workspace.getPropertiesInterface != null) workspace.getPropertiesInterface
     else new WorldPropertiesInterface { def fontSize = 10 } // TODO BAD HACK! JC 12/28/10
   )

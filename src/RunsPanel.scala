@@ -77,7 +77,7 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
     activityName = handshake.activityName
     if (runsGUI != null) remove(runsGUI)
     plotManager.forgetAll()
-    viewWidget = new RunsView(this)
+    viewWidget = new RunsView()
     runsGUI = new RunsGUI(editorFactory, viewWidget, plotManager, compiler)
     add(runsGUI, java.awt.BorderLayout.CENTER)
     val clientInterface = handshake.interfaceSpecList.first.asInstanceOf[ClientInterface]

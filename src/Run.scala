@@ -6,8 +6,8 @@ import java.io.{ ByteArrayOutputStream, ByteArrayInputStream,
                  ObjectOutputStream, ObjectInputStream,
                  FileOutputStream, FileInputStream }
 import javax.imageio.ImageIO
-import org.nlogo.hubnet.protocol.HandshakeFromServer
 import org.nlogo.hubnet.mirroring.DiffBuffer
+import org.nlogo.hubnet.protocol.{ClientInterface, HandshakeFromServer}
 
 object Run {
   def save(path: String, runs: Seq[Run]) {
@@ -29,6 +29,7 @@ class Run(var name: String,
   var frameNumber:Int = 0,
   var annotations:String = "") extends Serializable {
 
+  def interface: ClientInterface = handshake.interfaceSpecList.get(0).asInstanceOf[ClientInterface]
   def addFrame(diff:DiffBuffer) = {
     diffs :+= diff
   }

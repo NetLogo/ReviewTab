@@ -1,43 +1,21 @@
 package org.nlogo.review
 
-import java.awt.event.MouseEvent
 import java.awt.{Font, Graphics2D, Graphics}
 import java.io.{ByteArrayInputStream, DataInputStream}
 import org.nlogo.api.{Perspective, Graphics2DWrapper, ViewSettings}
 import org.nlogo.hubnet.mirroring._
-import org.nlogo.window.{InterfaceColors, ViewMouseHandler, ViewWidgetInterface, Widget}
+import org.nlogo.window.{InterfaceColors, ViewWidgetInterface, Widget}
 import org.nlogo.hubnet.client.ClientRenderer
+import org.nlogo.util.JCL._
+import org.nlogo.hubnet.protocol.ClientInterface
 
 // The view widget in the client.
-class RunsView(clientPanel: RunsPanel) extends Widget with ViewWidgetInterface with ViewSettings {
+class RunsView extends Widget with ViewWidgetInterface with ViewSettings {
   var world = new ClientWorld()
-
-  def newWorld(){
-    world = new ClientWorld()
-    world.setTrailDrawer(renderer.trailDrawer())
-    renderer = new ClientRenderer(world)
-  }
-
   var renderer = new ClientRenderer(world)
   def isHeadless = false
   private var _displayOn = false
   def setDisplayOn(on: Boolean) { _displayOn = on; repaint() }
-
-  locally {
-    world.setTrailDrawer(renderer.trailDrawer())
-    val mouser = new ViewMouseHandler(this, world, this) {
-      override def mousePressed(e: MouseEvent) {
-        super.mousePressed(e)
-        //if (_displayOn && mouseInside) clientPanel.sendMouseMessage(mouseXCor, mouseYCor, true)
-      }
-      override def mouseReleased(e: MouseEvent) {
-        super.mouseReleased(e)
-        //if (_displayOn && mouseInside) clientPanel.sendMouseMessage(mouseXCor, mouseYCor, false)
-      }
-    }
-    addMouseListener(mouser)
-    addMouseMotionListener(mouser)
-  }
 
   // PAINTING
   override def paintComponent(g: Graphics) {
