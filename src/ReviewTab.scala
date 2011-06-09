@@ -4,16 +4,20 @@ import java.awt.{ Dimension, BorderLayout, Graphics }
 import javax.swing._
 import event.{ ListSelectionEvent, ListSelectionListener, ChangeEvent, ChangeListener }
 
-import org.nlogo.api.NetLogoAdapter
 import org.nlogo.awt.UserCancelException
 import org.nlogo.awt.Utils.invokeLater
 import org.nlogo.swing.FileDialog
 import org.nlogo.swing.Implicits._
 import org.nlogo.swing.PimpedJButton
 import org.nlogo.util.Exceptions.ignoring
-import org.nlogo.window.GUIWorkspace
+import org.nlogo.window.{Events, GUIWorkspace}
+import org.nlogo.window.Events.LoadSectionEvent
+import org.nlogo.hubnet.protocol.{HandshakeFromServer, ClientInterface}
+import org.nlogo.api.{LogoList, ModelSection, ModelReader, NetLogoAdapter}
+import org.nlogo.hubnet.client.ClientAWTEvent
+import scala.collection.JavaConverters._
 
-class ReviewTab(workspace: GUIWorkspace) extends JPanel {
+class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionEvent.Handler {
 
   val interface =
     workspace.getWidgetContainer.asInstanceOf[java.awt.Component]
@@ -21,15 +25,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
   def currentlyVisibleRun: Option[Run] =
     Option(runList.getSelectedValue).map(_.asInstanceOf[Run])
 
-  val view = new JPanel{
-    override def getPreferredSize =
-      currentlyVisibleRun
-        .map(run => new Dimension(run.currentImage.getWidth, run.currentImage.getHeight))
-        .getOrElse(new Dimension(0, 0))
-    override def paintComponent(g: Graphics) {
-      currentlyVisibleRun.foreach(r => g.drawImage(r.currentImage, 0, 0, null))
-    }
-  }
+  val view = new RunsPanel(new org.nlogo.hubnet.client.EditorFactory(workspace), workspace)
 
   val scrubber = new JSlider{ slider =>
     addChangeListener(new ChangeListener{
@@ -42,16 +38,35 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
     })
   }
 
+  var widgetDescriptions: Array[String] = Array()
+
+  private def createClientInterfaceSpec: ClientInterface = {
+    val widgets = ModelReader.parseWidgets(widgetDescriptions).asScala.map(_.asScala)
+    val clientInterfaceSpec = new ClientInterface(widgets, widgetDescriptions.toList,
+      workspace.world.turtleShapeList.getShapes.asScala,
+      workspace.world.linkShapeList.getShapes.asScala, workspace)
+    clientInterfaceSpec
+  }
+
+  def handle(e:LoadSectionEvent){
+    if(e.section == ModelSection.WIDGETS){
+      widgetDescriptions = e.lines
+    }
+  }
+
   val listener = new NetLogoAdapter {
     val count = Iterator.from(0)
     override def tickCounterChanged(ticks: Double) {
       if(ticks == 0) {
-        val newRun = new Run("run " + count.next())
+        val handshake = new HandshakeFromServer(workspace.modelNameForDisplay, LogoList(createClientInterfaceSpec))
+        val newRun = new Run("run " + count.next(), handshake)
         runListModel.addElement(newRun)
         //runList.selectLastMaybe()
       }
       workspace.updateUI()
-      lastRun.addFrame(org.nlogo.awt.Utils.paintToImage(interface))
+
+      // TODO: create ViewUpdate with ServerWorld and add it to run
+
       for(r <- currentlyVisibleRun)
         if(r eq lastRun)
           scrubber.setMaximum(r.max)
@@ -78,9 +93,12 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
         def valueChanged(p1: ListSelectionEvent) {
           if(list.getSelectedIndex != -1) {
             // save the annotations on the previously selected run
-            currentRun.foreach{ r => r.annotations = annotations.getText }
+            currentRun.foreach{ r =>
+              r.annotations = annotations.getText
+            }
             // change to the newly selected run.
             currentRun = Some(runListModel.get(list.getSelectedIndex).asInstanceOf[Run])
+            getToolkit.getSystemEventQueue.postEvent(new ClientAWTEvent(view, currentRun.get.handshake, true))
             scrubber.setMaximum(currentRun.get.max)
             scrubber.setValue(currentRun.get.frameNumber)
             annotations.setText(currentRun.get.annotations)

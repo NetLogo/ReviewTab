@@ -6,6 +6,7 @@ import java.io.{ ByteArrayOutputStream, ByteArrayInputStream,
                  ObjectOutputStream, ObjectInputStream,
                  FileOutputStream, FileInputStream }
 import javax.imageio.ImageIO
+import org.nlogo.hubnet.protocol.HandshakeFromServer
 
 object Run {
   def save(path: String, runs: Seq[Run]) {
@@ -22,6 +23,7 @@ object Run {
 
 @SerialVersionUID(0)
 class Run(var name: String,
+  var handshake:HandshakeFromServer,
   var images: ArrayBuffer[Array[Byte]] = ArrayBuffer(),
   var frameNumber:Int = 0,
   var annotations:String = "") extends Serializable {
