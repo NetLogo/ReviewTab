@@ -20,10 +20,6 @@ import org.nlogo.hubnet.protocol.{ViewUpdate, HandshakeFromServer, ClientInterfa
 
 class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionEvent.Handler {
 
-  // ? what is this ?
-//  val interface =
-//    workspace.getWidgetContainer.asInstanceOf[java.awt.Component]
-
   private val worldBuffer = new ServerWorld(
     if(workspace.getPropertiesInterface != null) workspace.getPropertiesInterface
     else new WorldPropertiesInterface { def fontSize = 10 } // TODO BAD HACK! JC 12/28/10
@@ -36,6 +32,10 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
       def stateChanged(p1: ChangeEvent) {
         currentlyVisibleRun.foreach{ r =>
           invokeLater{() =>
+
+            val oldFrame = r.frameNumber
+            val resetWorld = r.frameNumber > slider.getValue
+
             r.frameNumber = slider.getValue
 
             // i added this in and it seems to get things to work ok
@@ -50,14 +50,17 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
             // maybe a method like updateWorld(world, n)
             // in fact, the event posting below is kind of silly. we should just apply all the
             // diffs to the world and then repaint. 
-            view.viewWidget.world.reset()
+            if(resetWorld) view.viewWidget.world.reset()
 
             // apply diffs from 0 to slider location N.
             // this is slow for large values of N.
             // we need to figure out how to do check-pointing.
-            for((d,i)<-r.diffs.take(r.frameNumber).zipWithIndex) {
-              getToolkit.getSystemEventQueue.postEvent(new ClientAWTEvent(view, new ViewUpdate(d.toByteArray), true))
+            val slice = r.diffs.slice(if(resetWorld) 0 else oldFrame + 1, r.frameNumber + 1)
+            println("slice size: " + slice.size)
+            for(d<-slice) {
+              view.handleProtocolMessage(new ViewUpdate(d.toByteArray))
             }
+
             view.repaint()
           }
         }

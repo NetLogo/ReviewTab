@@ -38,6 +38,7 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
   def setDisplayOn(on: Boolean) { if (viewWidget != null) viewWidget.setDisplayOn(on) }
 
   // TODO: figure out - do we need this for runs?
+  // i think we do, so i'm not removing it. 
   def handle(e: org.nlogo.window.Events.AddSliderConstraintEvent) {
     e.slider.setSliderConstraint(
       new ConstantSliderConstraint(e.minSpec.toDouble, e.maxSpec.toDouble, e.incSpec.toDouble){ defaultValue = e.value })

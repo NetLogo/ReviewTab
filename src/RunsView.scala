@@ -48,7 +48,6 @@ class RunsView extends Widget with ViewWidgetInterface with ViewSettings {
           _displayOn=true
         }
         catch {case e: java.io.IOException => org.nlogo.util.Exceptions.handle(e)}
-        repaint()
       }
     }
   }
