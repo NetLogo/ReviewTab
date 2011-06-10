@@ -21,9 +21,12 @@ import org.nlogo.hubnet.client.{ClientAWTEvent, ClientAWTExceptionEvent}
 class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerServices) extends JPanel with
         org.nlogo.window.Events.AddSliderConstraintEvent.Handler {
 
+  // runsGUI contains an InterfacePanelLite, which contains all the widgets.
+  // it is constructed in completeLogin
   var runsGUI:RunsGUI = null
   var viewWidget:RunsView = null
   private val plotManager = new PlotManager(new DummyLogoThunkFactory())
+  // not yet used
   private var activityName: String = null
 
   locally {
@@ -31,8 +34,10 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
     setLayout(new java.awt.BorderLayout())
   }
 
+  // we probably don't need this for runs.
   def setDisplayOn(on: Boolean) { if (viewWidget != null) viewWidget.setDisplayOn(on) }
 
+  // TODO: figure out - do we need this for runs?
   def handle(e: org.nlogo.window.Events.AddSliderConstraintEvent) {
     e.slider.setSliderConstraint(
       new ConstantSliderConstraint(e.minSpec.toDouble, e.maxSpec.toDouble, e.incSpec.toDouble){ defaultValue = e.value })
@@ -47,6 +52,11 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
       case l: HubNetLine => viewWidget.renderer.drawLine(l)
       case _ => viewWidget.renderer.clearDrawing()
     }
+    // i can't actually fathom who would have thought to do this this way
+    // or for that matter, what this actually means...
+    // i guess it just clears all plots. why is the widgetName "ALL PLOTS"
+    // instead of "CLEAR ALL PLOTS"?
+    // this whole thing is ridiculous.
     else if (widgetName=="ALL PLOTS") {
       plotManager.clearAll()
       for (pw <- runsGUI.getInterfaceComponents.collect { case pw: PlotWidget => pw }) {
@@ -54,6 +64,8 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
         pw.repaintIfNeeded()
       }
     }
+    // finally some code that makes sense.
+    // find the widget and update its value.
     else findWidget(widgetName) match {
       case Some(w) => w match {
         case i: InterfaceGlobalWidget => i.valueObject(value)
@@ -74,6 +86,8 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
    * from the server.
    */
   def completeLogin(handshake: HandshakeFromServer) {
+    // TODO: it doesn't appear that we are using this name anywhere.
+    // though it might be put to good use at some point. 
     activityName = handshake.activityName
     if (runsGUI != null) remove(runsGUI)
     plotManager.forgetAll()
@@ -96,6 +110,9 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
   }
 
   // TODO: all casting here is terrible.
+  // TODO: it doesn't seem that we can actually get an ClientAWTExceptionEvent here.
+  // in hubnet you can, because the (socket) Listener posts it.
+  // there is no Listener in runs. - JC 6/10/11
   override def processEvent(e: AWTEvent) {
     if (e.isInstanceOf[ClientAWTEvent] && e.getSource == this) {
       val clientEvent = e.asInstanceOf[ClientAWTEvent]
@@ -108,33 +125,42 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
   }
 
 
+  // TODO: We get in
   private def handleEx(e: Exception, sendingEx: Boolean) {
     org.nlogo.awt.Utils.mustBeEventDispatchThread()
     e.printStackTrace()
   }
 
+  // called from processEvent
+  // no reason to think the message wouldnt be a Message object.
+  // if it is, we have a coding error. 
   private def receiveData(a: Any): Unit = {
     org.nlogo.awt.Utils.mustBeEventDispatchThread()
     a match {
       case m: Message => handleProtocolMessage(m)
-      case _ => sys.error("boom")
     }
   }
 
   def handleProtocolMessage(message: org.nlogo.hubnet.protocol.Message) {
     message match {
       case h: HandshakeFromServer => completeLogin(h)
-      //case ExitMessage(reason) => disconnect(reason)
       case WidgetControl(content, tag) => handleWidgetControlMessage(content, tag)
+      // TODO: we probably don't have to handle this case for Runs - JC 6/10/11
       case DisableView => setDisplayOn(false)
       case ViewUpdate(worldData) => viewWidget.updateDisplay(worldData)
+      // TODO: we should probably take this time to rewrite plot mirroring - JC 6/10/11
       case PlotControl(content, plotName) => handlePlotControlMessage(content, plotName)
       case PlotUpdate(plot) => handlePlotUpdate(plot)
+      // TODO: we probably don't have to handle these cases for Runs - JC 6/10/11
+      // but i guess its possible that they could be helpful in the future
       case OverrideMessage(data, clear) => viewWidget.handleOverrideList(data.asInstanceOf[OverrideList], clear)
       case ClearOverrideMessage => viewWidget.clearOverrides()
       case AgentPerspectiveMessage(bytes) => viewWidget.handleAgentPerspective(bytes)
     }
   }
+
+  // here be dragons //
+  // plot mirroring code is below. its bad news. - JC 6/10/11
 
   def handlePlotUpdate(msg: PlotInterface) {
     for (pw <- runsGUI.getInterfaceComponents.collect {case pw: PlotWidget => pw}) {

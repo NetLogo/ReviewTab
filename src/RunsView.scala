@@ -6,8 +6,6 @@ import org.nlogo.api.{Perspective, Graphics2DWrapper, ViewSettings}
 import org.nlogo.hubnet.mirroring._
 import org.nlogo.window.{InterfaceColors, ViewWidgetInterface, Widget}
 import org.nlogo.hubnet.client.ClientRenderer
-import org.nlogo.util.JCL._
-import org.nlogo.hubnet.protocol.ClientInterface
 
 // The view widget in the client.
 class RunsView extends Widget with ViewWidgetInterface with ViewSettings {
@@ -27,9 +25,9 @@ class RunsView extends Widget with ViewWidgetInterface with ViewSettings {
       }
       else {
         g.setClip(0, 0, getWidth, getHeight)
-        world.applyOverrides()
+        //world.applyOverrides()
         renderer.paint(new Graphics2DWrapper(g.asInstanceOf[Graphics2D]), this)
-        world.rollbackOverrides()
+        //world.rollbackOverrides()
       }
     }
   }

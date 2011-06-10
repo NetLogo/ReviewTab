@@ -11,9 +11,13 @@ import java.awt.{BorderLayout,Color,Insets}
 class RunsGUI(editorFactory: org.nlogo.window.EditorFactory,runsView: RunsView,
                 plotManager: PlotManager,compiler: CompilerServices) extends JPanel {
 
-  private val interfacePanel = new InterfacePanelLite(runsView,compiler,new DummyRandomServices(),plotManager,editorFactory) {
+  private val interfacePanel =
+    new InterfacePanelLite(runsView, compiler, new DummyRandomServices(), plotManager, editorFactory) {
+    // TODO: we don't need this, but really, we dont want sliders to be moved at all.
+    // nor any widgets for that matter. so, leaving this in here as a reminder. 
     sliderEventOnReleaseOnly(true)
     // intentionally do nothing.
+    // we don't want the user to be able to press buttons on the runs GUI.
     override def getKeyAdapter = new ButtonKeyAdapter {
       override def buttonKeyed(button: ButtonWidget) {}
     }
@@ -29,6 +33,8 @@ class RunsGUI(editorFactory: org.nlogo.window.EditorFactory,runsView: RunsView,
   override def requestFocus() { if (interfacePanel != null) interfacePanel.requestFocus() }
   def getInterfaceComponents = interfacePanel.getComponents
 
+  // TODO: i think we've done this all better in the Hubnet-Teacher-Client branch.
+  // better check. 
   def setChoices(chooserChoices: Map[String, org.nlogo.api.LogoList]) {
     def getWidget(name: String): ChooserWidget = {
       getInterfaceComponents.collect{case w:ChooserWidget => w}.find(_.displayName == name) match {

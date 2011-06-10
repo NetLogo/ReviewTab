@@ -1,6 +1,6 @@
 package org.nlogo.review
 
-import java.awt.{ Dimension, BorderLayout, Graphics }
+import java.awt.{ Dimension, BorderLayout }
 import javax.swing._
 import event.{ ListSelectionEvent, ListSelectionListener, ChangeEvent, ChangeListener }
 
@@ -20,11 +20,14 @@ import org.nlogo.hubnet.protocol.{ViewUpdate, HandshakeFromServer, ClientInterfa
 
 class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionEvent.Handler {
 
-  val interface =
-    workspace.getWidgetContainer.asInstanceOf[java.awt.Component]
+  // ? what is this ?
+//  val interface =
+//    workspace.getWidgetContainer.asInstanceOf[java.awt.Component]
 
-  def currentlyVisibleRun: Option[Run] =
-    Option(runList.getSelectedValue).map(_.asInstanceOf[Run])
+  private val worldBuffer = new ServerWorld(
+    if(workspace.getPropertiesInterface != null) workspace.getPropertiesInterface
+    else new WorldPropertiesInterface { def fontSize = 10 } // TODO BAD HACK! JC 12/28/10
+  )
 
   var view = new RunsPanel(new org.nlogo.hubnet.client.EditorFactory(workspace), workspace)
 
@@ -34,7 +37,24 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
         currentlyVisibleRun.foreach{ r =>
           invokeLater{() =>
             r.frameNumber = slider.getValue
+
+            // i added this in and it seems to get things to work ok
+            // but it feels like a hack.
+            // but maybe we should reset, then apply a check point diff
+            // then apply diffs after that up to N.
+            // i think that makes sense. a check point is like saying
+            // 'hey world, forget about everything you know, you know know this new stuff'
+            // then apply diffs after that.
+            // however, it doesn't feel like this should be done in this class at all.
+            // i think maybe we should just pass the world to the run
+            // maybe a method like updateWorld(world, n)
+            // in fact, the event posting below is kind of silly. we should just apply all the
+            // diffs to the world and then repaint. 
             view.viewWidget.world.reset()
+
+            // apply diffs from 0 to slider location N.
+            // this is slow for large values of N.
+            // we need to figure out how to do check-pointing.
             for((d,i)<-r.diffs.take(r.frameNumber).zipWithIndex) {
               getToolkit.getSystemEventQueue.postEvent(new ClientAWTEvent(view, new ViewUpdate(d.toByteArray), true))
             }
@@ -45,25 +65,17 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
     })
   }
 
-  var widgetDescriptions: Array[String] = Array()
-
-  private val world = workspace.world()
-  private val worldBuffer = new ServerWorld(
-    if(workspace.getPropertiesInterface != null) workspace.getPropertiesInterface
-    else new WorldPropertiesInterface { def fontSize = 10 } // TODO BAD HACK! JC 12/28/10
-  )
-
-  private def createClientInterfaceSpec: ClientInterface = {
-    val widgets = ModelReader.parseWidgets(widgetDescriptions).asScala.map(_.asScala)
-    val clientInterfaceSpec = new ClientInterface(widgets, widgetDescriptions.toList,
-      workspace.world.turtleShapeList.getShapes.asScala,
-      workspace.world.linkShapeList.getShapes.asScala, workspace)
-    clientInterfaceSpec
-  }
-
+  // this needs to get out of here.
+  // we create this when a new run is created.
+  // we need to go back to the teacher client branch and refresh our memories of
+  // how we handled this there.
+  var clientInterfaceSpec: ClientInterface = null
   def handle(e:LoadSectionEvent){
     if(e.section == ModelSection.WIDGETS){
-      widgetDescriptions = e.lines
+      val widgets = ModelReader.parseWidgets(e.lines).asScala.map(_.asScala)
+      clientInterfaceSpec = new ClientInterface(widgets, e.lines.toList,
+        workspace.world.turtleShapeList.getShapes.asScala,
+        workspace.world.linkShapeList.getShapes.asScala, workspace)
     }
   }
 
@@ -71,7 +83,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
     val count = Iterator.from(0)
     override def tickCounterChanged(ticks: Double) {
       if(ticks == 0) {
-        val handshake = new HandshakeFromServer(workspace.modelNameForDisplay, LogoList(createClientInterfaceSpec))
+        val handshake = new HandshakeFromServer(workspace.modelNameForDisplay, LogoList(clientInterfaceSpec))
         val newRun = new Run("run " + count.next(), handshake)
         runListModel.addElement(newRun)
         //runList.selectLastMaybe()
@@ -79,7 +91,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
       workspace.updateUI()
 
       // TRUE = reset entire world. this is bad. just hacking for now.
-      val diff = worldBuffer.updateWorld(world, true)
+      val diff = worldBuffer.updateWorld(workspace.world, true)
       lastRun.addFrame(diff)
 
       for(r <- currentlyVisibleRun)
@@ -87,6 +99,9 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
           scrubber.setMaximum(r.max)
     }
   }
+
+  def currentlyVisibleRun: Option[Run] =
+    Option(runList.getSelectedValue).map(_.asInstanceOf[Run])
 
   def lastRun =
     runListModel.get(runListModel.size - 1).asInstanceOf[Run]
@@ -176,8 +191,6 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
   private def discardAll() {
     runListModel.clear()
   }
-
-
 
   private def scroller(c: java.awt.Component) =
     new JScrollPane(c,
