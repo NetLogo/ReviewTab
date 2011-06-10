@@ -1,13 +1,9 @@
 package org.nlogo.review
 
 import collection.mutable.ArrayBuffer
-import java.awt.image.BufferedImage
-import java.io.{ ByteArrayOutputStream, ByteArrayInputStream,
-                 ObjectOutputStream, ObjectInputStream,
+import java.io.{ ObjectOutputStream, ObjectInputStream,
                  FileOutputStream, FileInputStream }
-import javax.imageio.ImageIO
-import org.nlogo.hubnet.mirroring.DiffBuffer
-import org.nlogo.hubnet.protocol.{ClientInterface, HandshakeFromServer}
+import org.nlogo.hubnet.protocol.{Message, ClientInterface, HandshakeFromServer}
 
 object Run {
   def save(path: String, runs: Seq[Run]) {
@@ -25,12 +21,12 @@ object Run {
 @SerialVersionUID(0)
 class Run(var name: String,
   var handshake:HandshakeFromServer,
-  var diffs: ArrayBuffer[DiffBuffer] = ArrayBuffer(),
+  var diffs: ArrayBuffer[Message] = ArrayBuffer(),
   var frameNumber:Int = 0,
   var annotations:String = "") extends Serializable {
 
   def interface: ClientInterface = handshake.interfaceSpecList.get(0).asInstanceOf[ClientInterface]
-  def addFrame(diff:DiffBuffer) = {
+  def addFrame(diff:Message) = {
     diffs :+= diff
   }
   def max = diffs.size - 1

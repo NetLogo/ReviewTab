@@ -48,18 +48,10 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
             // however, it doesn't feel like this should be done in this class at all.
             // i think maybe we should just pass the world to the run
             // maybe a method like updateWorld(world, n)
-            // in fact, the event posting below is kind of silly. we should just apply all the
-            // diffs to the world and then repaint. 
             if(resetWorld) view.viewWidget.world.reset()
 
-            // apply diffs from 0 to slider location N.
-            // this is slow for large values of N.
-            // we need to figure out how to do check-pointing.
             val slice = r.diffs.slice(if(resetWorld) 0 else oldFrame + 1, r.frameNumber + 1)
-            println("slice size: " + slice.size)
-            for(d<-slice) {
-              view.handleProtocolMessage(new ViewUpdate(d.toByteArray))
-            }
+            for(d<-slice) view.handleProtocolMessage(d)
 
             view.repaint()
           }
@@ -95,7 +87,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
 
       // TRUE = reset entire world. this is bad. just hacking for now.
       val diff = worldBuffer.updateWorld(workspace.world, true)
-      lastRun.addFrame(diff)
+      lastRun.addFrame(ViewUpdate(diff.toByteArray))
 
       for(r <- currentlyVisibleRun)
         if(r eq lastRun)
