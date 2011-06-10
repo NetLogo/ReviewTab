@@ -14,16 +14,10 @@ import org.nlogo.window.{Events, GUIWorkspace}
 import org.nlogo.window.Events.LoadSectionEvent
 import org.nlogo.hubnet.client.ClientAWTEvent
 import scala.collection.JavaConverters._
-import org.nlogo.hubnet.mirroring.ServerWorld
 import org.nlogo.api._
-import org.nlogo.hubnet.protocol.{ViewUpdate, HandshakeFromServer, ClientInterface}
+import org.nlogo.hubnet.protocol.{HandshakeFromServer, ClientInterface}
 
 class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionEvent.Handler {
-
-  private val worldBuffer = new ServerWorld(
-    if(workspace.getPropertiesInterface != null) workspace.getPropertiesInterface
-    else new WorldPropertiesInterface { def fontSize = 10 } // TODO BAD HACK! JC 12/28/10
-  )
 
   var view = new RunsPanel(new org.nlogo.hubnet.client.EditorFactory(workspace), workspace)
 
@@ -33,25 +27,18 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
         currentlyVisibleRun.foreach{ r =>
           invokeLater{() =>
 
+            // TODO: we really just want to say something like this here:
+            //run.updateTo(n) or run.show(n)
+
+            // but instead we do all of this
             val oldFrame = r.frameNumber
-            val resetWorld = r.frameNumber > slider.getValue
+            val newFrame = slider.getValue
+            r.frameNumber = newFrame
 
-            r.frameNumber = slider.getValue
-
-            // i added this in and it seems to get things to work ok
-            // but it feels like a hack.
-            // but maybe we should reset, then apply a check point diff
-            // then apply diffs after that up to N.
-            // i think that makes sense. a check point is like saying
-            // 'hey world, forget about everything you know, you know know this new stuff'
-            // then apply diffs after that.
-            // however, it doesn't feel like this should be done in this class at all.
-            // i think maybe we should just pass the world to the run
-            // maybe a method like updateWorld(world, n)
+            val resetWorld = oldFrame > slider.getValue
             if(resetWorld) view.viewWidget.world.reset()
-
-            val slice = r.diffs.slice(if(resetWorld) 0 else oldFrame + 1, r.frameNumber + 1)
-            for(d<-slice) view.handleProtocolMessage(d)
+            val slice = r.frames.slice(if(resetWorld) 0 else oldFrame + 1, r.frameNumber + 1)
+            for(f<-slice; d<-f.diffs) view.handleProtocolMessage(d)
 
             view.repaint()
           }
@@ -79,21 +66,22 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
     override def tickCounterChanged(ticks: Double) {
       if(ticks == 0) {
         val handshake = new HandshakeFromServer(workspace.modelNameForDisplay, LogoList(clientInterfaceSpec))
-        val newRun = new Run("run " + count.next(), handshake)
+        val newRun = new Run("run " + count.next(), handshake, viewProps.fontSize)
         runListModel.addElement(newRun)
         //runList.selectLastMaybe()
       }
-      workspace.updateUI()
 
-      // TRUE = reset entire world. this is bad. just hacking for now.
-      val diff = worldBuffer.updateWorld(workspace.world, true)
-      lastRun.addFrame(ViewUpdate(diff.toByteArray))
+      lastRun.addFrame(workspace.world)
 
       for(r <- currentlyVisibleRun)
         if(r eq lastRun)
           scrubber.setMaximum(r.max)
     }
   }
+
+  def viewProps =
+    if(workspace.getPropertiesInterface != null) workspace.getPropertiesInterface
+    else new WorldPropertiesInterface { def fontSize = 10 }
 
   def currentlyVisibleRun: Option[Run] =
     Option(runList.getSelectedValue).map(_.asInstanceOf[Run])
@@ -161,6 +149,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
     workspace.listenerManager.addListener(listener)
   }
 
+  // TODO: widgets also get added to the Interface tab!
   private def load() {
     ignoring(classOf[UserCancelException]) {
       val path = FileDialog.show(this, "Open Runs", java.awt.FileDialog.LOAD, null)
@@ -178,11 +167,13 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
     }
   }
 
+  // TODO: BROKEN
   private def discard() {
     if(! runList.isSelectionEmpty)
       runList.remove(runList.getSelectedIndex)
   }
 
+  // TODO: Discards all, but doesn't clear the view. 
   private def discardAll() {
     runListModel.clear()
   }
