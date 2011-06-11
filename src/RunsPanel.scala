@@ -97,6 +97,12 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
     add(runsGUI, java.awt.BorderLayout.CENTER)
     val clientInterface = handshake.interfaceSpecList.first.asInstanceOf[ClientInterface]
     val widgets = WidgetIO.dumpWidgets(clientInterface.widgets)
+    // TODO: these events are almost certainly bad to raise
+    // since we are in the same jvm as netlogo...
+    // the idea in the HubNetClient was that the InterfacePanelLite in the
+    // RunsGUI object would catch them and add the widgets.
+    // but the same JVM, this causes the Interface tab to add extra widgets.
+    // this is sometimes hard to see because they are in the exact same location as the other widgets.
     new LoadSectionEvent("HubNet", ModelSection.WIDGETS, widgets.toArray, widgets.mkString("\n")).raise(this)
     // so that constrained widgets can initialize themselves -- CLB
     new AfterLoadEvent().raise(this)
