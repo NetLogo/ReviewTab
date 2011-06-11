@@ -11,13 +11,12 @@ import org.nlogo.swing.Implicits._
 import org.nlogo.swing.PimpedJButton
 import org.nlogo.util.Exceptions.ignoring
 import org.nlogo.window.{Events, GUIWorkspace}
-import org.nlogo.window.Events.LoadSectionEvent
 import org.nlogo.hubnet.client.ClientAWTEvent
 import scala.collection.JavaConverters._
 import org.nlogo.api._
 import org.nlogo.hubnet.protocol.{HandshakeFromServer, ClientInterface}
 
-class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionEvent.Handler {
+class ReviewTab(workspace: GUIWorkspace) extends JPanel {
 
   var view = new RunsPanel(new org.nlogo.hubnet.client.EditorFactory(workspace), workspace)
 
@@ -51,15 +50,10 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel with Events.LoadSectionE
   // we create this when a new run is created.
   // we need to go back to the teacher client branch and refresh our memories of
   // how we handled this there.
-  var clientInterfaceSpec: ClientInterface = null
-  def handle(e:LoadSectionEvent){
-    if(e.section == ModelSection.WIDGETS){
-      val widgets = ModelReader.parseWidgets(e.lines).asScala.map(_.asScala)
-      clientInterfaceSpec = new ClientInterface(widgets, e.lines.toList,
-        workspace.world.turtleShapeList.getShapes.asScala,
-        workspace.world.linkShapeList.getShapes.asScala, workspace)
-    }
-  }
+  def clientInterfaceSpec: ClientInterface = new ClientInterface(
+    workspace.serverWidgetSpecs,
+    workspace.world.turtleShapeList.getShapes.asScala,
+    workspace.world.linkShapeList.getShapes.asScala)
 
   val listener = new NetLogoAdapter {
     val count = Iterator.from(0)

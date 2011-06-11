@@ -10,9 +10,9 @@ import org.nlogo.hubnet.protocol._
 import org.nlogo.awt.Utils.{getFrame, invokeLater}
 import org.nlogo.util.JCL._
 import org.nlogo.window.{MonitorWidget, InterfaceGlobalWidget, Widget, PlotWidget}
-import org.nlogo.api.{ModelSection, PlotInterface, DummyLogoThunkFactory, CompilerServices}
 import org.nlogo.swing.Implicits._
 import org.nlogo.hubnet.client.{ClientAWTEvent, ClientAWTExceptionEvent}
+import org.nlogo.api.{WidgetIO, ModelSection, PlotInterface, DummyLogoThunkFactory, CompilerServices}
 
 // Normally we try not to use the org.nlogo.window.Events stuff except in
 // the app and window packages.  But currently there's no better
@@ -96,11 +96,11 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
     runsGUI = new RunsGUI(editorFactory, viewWidget, plotManager, compiler)
     add(runsGUI, java.awt.BorderLayout.CENTER)
     val clientInterface = handshake.interfaceSpecList.first.asInstanceOf[ClientInterface]
-    val widgets = clientInterface.widgetDescriptions
+    val widgets = WidgetIO.dumpWidgets(clientInterface.widgets)
     new LoadSectionEvent("HubNet", ModelSection.WIDGETS, widgets.toArray, widgets.mkString("\n")).raise(this)
     // so that constrained widgets can initialize themselves -- CLB
     new AfterLoadEvent().raise(this)
-    runsGUI.setChoices(clientInterface.chooserChoices.toMap)
+    runsGUI.setChoices(clientInterface.chooserChoices(compiler).toMap)
     viewWidget.renderer.replaceTurtleShapes(toJavaList(clientInterface.turtleShapes))
     viewWidget.renderer.replaceLinkShapes(toJavaList(clientInterface.linkShapes))
     invokeLater(() => {
