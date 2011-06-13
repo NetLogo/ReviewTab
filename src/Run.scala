@@ -3,10 +3,10 @@ package org.nlogo.review
 import java.io.{ ObjectOutputStream, ObjectInputStream, FileOutputStream, FileInputStream }
 import org.nlogo.hubnet.mirroring.ServerWorld
 import collection.mutable.{HashMap, ArrayBuffer}
-import org.nlogo.api.WidgetIO.{MonitorSpec, InterfaceGlobalWidgetSpec}
 import org.nlogo.hubnet.protocol._
 import org.nlogo.window.GUIWorkspace
 import org.nlogo.api.{ReporterLogoThunk, WorldPropertiesInterface}
+import org.nlogo.api.WidgetIO.{WidgetSpec, MonitorSpec, InterfaceGlobalWidgetSpec}
 
 object Run {
   def save(path: String, runs: Seq[Run]) {
@@ -38,19 +38,19 @@ class Run(var name: String,
   val interface: ClientInterface = handshake.interfaceSpecList.get(0).asInstanceOf[ClientInterface]
   val monitorThunks = HashMap[String, ReporterLogoThunk]()
 
-  def addFrame(workspace: GUIWorkspace) = {
+  def addFrame(workspace: GUIWorkspace) {
+    def evaluateWidget(widget: WidgetSpec): Option[WidgetControl] = widget match {
+      case i: InterfaceGlobalWidgetSpec =>
+        Some(WidgetControl(workspace.world.getObserverVariableByName(i.name), i.name))
+      case m: MonitorSpec => {
+        val thunk =
+          monitorThunks.getOrElseUpdate(m.source.get, workspace.makeReporterThunk(m.source.get, "ReviewTab"))
+        Some(WidgetControl(thunk.call, m.displayName.getOrElse(m.source.get)))
+      }
+      case _ => None
+    }
     val viewDiff = ViewUpdate(worldBuffer.updateWorld(workspace.world, false).toByteArray)
-    val widgetDiffs = (for (widget <- interface.widgets) yield
-      widget match {
-        case i: InterfaceGlobalWidgetSpec =>
-          Some(WidgetControl(workspace.world.getObserverVariableByName(i.name), i.name))
-        case m: MonitorSpec => {
-          val thunk =
-            monitorThunks.getOrElseUpdate(m.source.get, workspace.makeReporterThunk(m.source.get, "ReviewTab"))
-          Some(WidgetControl(thunk.call, m.displayName.getOrElse(m.source.get)))
-        }
-        case _ => None
-      }).flatten
+    val widgetDiffs = interface.widgets flatMap evaluateWidget
     frames :+= Frame(workspace.world.ticks.toInt, viewDiff :: widgetDiffs.toList)
   }
 
