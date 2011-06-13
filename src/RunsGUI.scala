@@ -12,7 +12,7 @@ class RunsGUI(editorFactory: org.nlogo.window.EditorFactory,runsView: RunsView,
                 plotManager: PlotManager,compiler: CompilerServices) extends JPanel {
 
   private val interfacePanel =
-    new InterfacePanelLite(runsView, compiler, new DummyRandomServices(), plotManager, editorFactory) {
+    new InterfacePanelLite(runsView, compiler, new DummyRandomServices(), plotManager, editorFactory, true) {
     // TODO: we don't need this, but really, we dont want sliders to be moved at all.
     // nor any widgets for that matter. so, leaving this in here as a reminder. 
     sliderEventOnReleaseOnly(true)
