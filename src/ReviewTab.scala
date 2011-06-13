@@ -25,20 +25,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
       def stateChanged(p1: ChangeEvent) {
         currentlyVisibleRun.foreach{ r =>
           invokeLater{() =>
-
-            // TODO: we really just want to say something like this here:
-            //run.updateTo(n) or run.show(n)
-
-            // but instead we do all of this
-            val oldFrame = r.frameNumber
-            val newFrame = slider.getValue
-            r.frameNumber = newFrame
-
-            val resetWorld = oldFrame > slider.getValue
-            if(resetWorld) view.viewWidget.world.reset()
-            val slice = r.frames.slice(if(resetWorld) 0 else oldFrame + 1, r.frameNumber + 1)
-            for(f<-slice; d<-f.diffs) view.handleProtocolMessage(d)
-
+            r.updateTo(slider.getValue, view)
             view.repaint()
           }
         }
@@ -65,7 +52,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
         //runList.selectLastMaybe()
       }
 
-      lastRun.addFrame(workspace.world)
+      lastRun.addFrame(workspace)
 
       for(r <- currentlyVisibleRun)
         if(r eq lastRun)

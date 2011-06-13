@@ -1,11 +1,12 @@
 package org.nlogo.review
 
-import collection.mutable.ArrayBuffer
-import java.io.{ ObjectOutputStream, ObjectInputStream,
-                 FileOutputStream, FileInputStream }
+import java.io.{ ObjectOutputStream, ObjectInputStream, FileOutputStream, FileInputStream }
 import org.nlogo.hubnet.mirroring.ServerWorld
-import org.nlogo.hubnet.protocol.{ViewUpdate, Message, ClientInterface, HandshakeFromServer}
-import org.nlogo.api.{World, WorldPropertiesInterface}
+import collection.mutable.{HashMap, ArrayBuffer}
+import org.nlogo.api.WidgetIO.{MonitorSpec, InterfaceGlobalWidgetSpec}
+import org.nlogo.hubnet.protocol._
+import org.nlogo.window.GUIWorkspace
+import org.nlogo.api.{ReporterLogoThunk, WorldPropertiesInterface}
 
 object Run {
   def save(path: String, runs: Seq[Run]) {
@@ -19,13 +20,8 @@ object Run {
   }
 }
 
-object Frame {
-  def apply(tick:Int, diffs: Message*): Frame = new Frame(tick, diffs.toIterable)
-}
-
 @SerialVersionUID(0)
 case class Frame(tick:Int, diffs: Iterable[Message])
-
 
 @SerialVersionUID(0)
 class Run(var name: String,
@@ -36,17 +32,38 @@ class Run(var name: String,
   var annotations:String = "") extends Serializable {
 
   private val worldBuffer = new ServerWorld(
-    new WorldPropertiesInterface { def fontSize = Run.this.fontSize })
+    new WorldPropertiesInterface { def fontSize = Run.this.fontSize }
+  )
 
-  def interface: ClientInterface = handshake.interfaceSpecList.get(0).asInstanceOf[ClientInterface]
-  def addFrame(world:World) = {
-    frames :+= Frame(world.ticks.toInt,
-      ViewUpdate(worldBuffer.updateWorld(world, false).toByteArray)
-      // TODO: include widget changes here
-      // TODO: include plot messages here
-    )
+  val interface: ClientInterface = handshake.interfaceSpecList.get(0).asInstanceOf[ClientInterface]
+  val monitorThunks = HashMap[String, ReporterLogoThunk]()
+
+  def addFrame(workspace: GUIWorkspace) = {
+    val viewDiff = ViewUpdate(worldBuffer.updateWorld(workspace.world, false).toByteArray)
+    val widgetDiffs = (for (widget <- interface.widgets) yield
+      widget match {
+        case i: InterfaceGlobalWidgetSpec =>
+          Some(WidgetControl(workspace.world.getObserverVariableByName(i.name), i.name))
+        case m: MonitorSpec => {
+          val thunk =
+            monitorThunks.getOrElseUpdate(m.source.get, workspace.makeReporterThunk(m.source.get, "ReviewTab"))
+          Some(WidgetControl(thunk.call, m.displayName.getOrElse(m.source.get)))
+        }
+        case _ => None
+      }).flatten
+    frames :+= Frame(workspace.world.ticks.toInt, viewDiff :: widgetDiffs.toList)
   }
+
   def max = frames.size - 1
   // since JList will display this to the user
   override def toString = name
+
+  def updateTo(newFrame:Int, view: RunsPanel){
+    val oldFrame = frameNumber
+    frameNumber = newFrame
+    val resetWorld = oldFrame > newFrame
+    if (resetWorld) view.viewWidget.world.reset()
+    val slice = frames.slice(if (resetWorld) 0 else oldFrame + 1, newFrame + 1)
+    for (f <- slice; d <- f.diffs) view.handleProtocolMessage(d)
+  }
 }

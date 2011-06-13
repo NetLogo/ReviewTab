@@ -29,6 +29,8 @@ class RunsView extends Widget with ViewWidgetInterface with ViewSettings {
         renderer.paint(new Graphics2DWrapper(g.asInstanceOf[Graphics2D]), this)
         //world.rollbackOverrides()
       }
+      // TODO: maybe use this to show ticks. 
+      //g.drawString(world.ticks.toString, 0, 12)
     }
   }
 
