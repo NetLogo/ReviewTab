@@ -24,39 +24,57 @@ object Run {
 case class Frame(tick:Int, diffs: Iterable[Message])
 
 @SerialVersionUID(0)
-class Run(var name: String,
+case class Run(
+  var name: String,
   var handshake:HandshakeFromServer,
   var fontSize:Int,
   var frames: ArrayBuffer[Frame] = ArrayBuffer(),
   var frameNumber:Int = 0,
-  var annotations:String = "") extends Serializable {
+  var annotations:String = "") {
 
-  private val worldBuffer = new ServerWorld(
+  @transient private val worldBuffer = new ServerWorld(
     new WorldPropertiesInterface { def fontSize = Run.this.fontSize }
   )
+  @transient private val interface = handshake.interfaceSpecList.get(0).asInstanceOf[ClientInterface]
+  @transient private val monitorThunks = HashMap[String, ReporterLogoThunk]()
+  @transient private val widgetValues = new HashMap[String, AnyRef]
 
-  val interface: ClientInterface = handshake.interfaceSpecList.get(0).asInstanceOf[ClientInterface]
-  val monitorThunks = HashMap[String, ReporterLogoThunk]()
-
+  // gather any diffs for this tick including
+  // the view, all widgets, and plots.
   def addFrame(workspace: GUIWorkspace) {
+    // only include the newValue in the diff if it is different
+    // from the widgets previous value.
+    def maybeNewVal(name:String, newValue:AnyRef): Option[WidgetControl] =
+      if (!widgetValues.contains(name) || widgetValues(name) != newValue) {
+        widgetValues.put(name, newValue)
+        Some(WidgetControl(newValue, name))
+      }
+      else None
+    // get the current value of the widget
     def evaluateWidget(widget: WidgetSpec): Option[WidgetControl] = widget match {
       case i: InterfaceGlobalWidgetSpec =>
-        Some(WidgetControl(workspace.world.getObserverVariableByName(i.name), i.name))
+        maybeNewVal(i.name, workspace.world.getObserverVariableByName(i.name))
       case m: MonitorSpec => {
-        val thunk =
-          monitorThunks.getOrElseUpdate(m.source.get, workspace.makeReporterThunk(m.source.get, "ReviewTab"))
-        Some(WidgetControl(thunk.call, m.displayName.getOrElse(m.source.get)))
+        def compile(source:String) = workspace.makeReporterThunk(source, "ReviewTab")
+        val thunk = monitorThunks.getOrElseUpdate(m.source.get, compile(m.source.get))
+        maybeNewVal(m.displayName.getOrElse(m.source.get), thunk.call)
       }
       case _ => None
     }
-    val viewDiff = ViewUpdate(worldBuffer.updateWorld(workspace.world, false).toByteArray)
-    val widgetDiffs = interface.widgets flatMap evaluateWidget
-    frames :+= Frame(workspace.world.ticks.toInt, viewDiff :: widgetDiffs.toList)
+    // only include a ViewUpdate if changes have happened in the view.
+    val viewDiffMaybe = {
+      val viewDiffBuffer = worldBuffer.updateWorld(workspace.world, false)
+      if(! viewDiffBuffer.isEmpty) Some(ViewUpdate(viewDiffBuffer.toByteArray))
+      else None
+    }
+    val widgetDiffs = interface.widgets map evaluateWidget
+    val allDiffs = (viewDiffMaybe :: widgetDiffs.toList).flatten
+    frames :+= Frame(workspace.world.ticks.toInt, allDiffs)
   }
 
   def max = frames.size - 1
-  // since JList will display this to the user
-  override def toString = name
+
+  override def toString = name // since JList will display this to the user
 
   def updateTo(newFrame:Int, view: RunsPanel){
     val oldFrame = frameNumber

@@ -96,6 +96,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
             scrubber.setMaximum(currentRun.get.max)
             scrubber.setValue(currentRun.get.frameNumber)
             annotations.setText(currentRun.get.annotations)
+            currentRun.get.updateTo(currentRun.get.frameNumber, view)
             invokeLater { () =>
               scrubber.repaint()
               view.repaint()
@@ -143,7 +144,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
 
   private def save() {
     ignoring(classOf[UserCancelException]) {
-      val path = FileDialog.show(this, "Save Runs", java.awt.FileDialog.SAVE, "runs.txt")
+      val path = FileDialog.show(this, "Save Runs", java.awt.FileDialog.SAVE, "runs.dat")
       Run.save(path, (0 until runListModel.size).map(n => runListModel.get(n).asInstanceOf[Run]))
     }
   }
