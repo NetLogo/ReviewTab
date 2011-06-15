@@ -41,7 +41,8 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
         //runList.selectLastMaybe()
       }
 
-      val lastRun = runListModel.get(runListModel.size - 1).asInstanceOf[ActiveRun]
+      // TODO: this somehow doesn't work if you remove the last element.
+      val lastRun = runListModel.lastElement().asInstanceOf[ActiveRun]
       lastRun.addFrame()
 
       for(r <- currentlyVisibleRun)
@@ -150,8 +151,9 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
 
   // TODO: BROKEN
   private def discard() {
-    if(! runList.isSelectionEmpty)
-      runList.remove(runList.getSelectedIndex)
+    if(! runList.isSelectionEmpty){
+      runListModel.remove(runList.getSelectedIndex)
+    }
   }
 
   // TODO: Discards all, but doesn't clear the view. 
