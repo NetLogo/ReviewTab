@@ -77,10 +77,8 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
     }
   }
 
-  private def findWidget(name:String) = {
+  private def findWidget(name:String) =
     runsGUI.getInterfaceComponents.collect {case w: Widget => w}.find(_.displayName == name)
-  }
-
 
   /**
    * Completes the login process. Called when a handshake message is received
@@ -226,7 +224,7 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
       case c: Char => {
         try c match {
           case 'c' =>
-            plotWidget.plot.clear
+            plotWidget.plot.clear()
             plotWidget.makeDirty()
             plotWidget.repaintIfNeeded()
           case 'r' =>

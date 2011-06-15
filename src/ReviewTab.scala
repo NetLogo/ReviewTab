@@ -10,11 +10,10 @@ import org.nlogo.swing.FileDialog
 import org.nlogo.swing.Implicits._
 import org.nlogo.swing.PimpedJButton
 import org.nlogo.util.Exceptions.ignoring
-import org.nlogo.window.{Events, GUIWorkspace}
+import org.nlogo.window.GUIWorkspace
 import org.nlogo.hubnet.client.ClientAWTEvent
-import scala.collection.JavaConverters._
 import org.nlogo.api._
-import org.nlogo.hubnet.protocol.{HandshakeFromServer, ClientInterface}
+import org.nlogo.hubnet.protocol.HandshakeFromServer
 
 class ReviewTab(workspace: GUIWorkspace) extends JPanel {
 
@@ -33,26 +32,17 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
     })
   }
 
-  // this needs to get out of here.
-  // we create this when a new run is created.
-  // we need to go back to the teacher client branch and refresh our memories of
-  // how we handled this there.
-  def clientInterfaceSpec: ClientInterface = new ClientInterface(
-    workspace.serverWidgetSpecs,
-    workspace.world.turtleShapeList.getShapes.asScala,
-    workspace.world.linkShapeList.getShapes.asScala)
-
   val listener = new NetLogoAdapter {
     val count = Iterator.from(0)
     override def tickCounterChanged(ticks: Double) {
       if(ticks == 0) {
-        val handshake = new HandshakeFromServer(workspace.modelNameForDisplay, LogoList(clientInterfaceSpec))
-        val newRun = new Run("run " + count.next(), handshake, viewProps.fontSize)
+        val newRun = new ActiveRun("run " + count.next(), workspace)
         runListModel.addElement(newRun)
         //runList.selectLastMaybe()
       }
 
-      lastRun.addFrame(workspace)
+      val lastRun = runListModel.get(runListModel.size - 1).asInstanceOf[ActiveRun]
+      lastRun.addFrame()
 
       for(r <- currentlyVisibleRun)
         if(r eq lastRun)
@@ -60,15 +50,8 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
     }
   }
 
-  def viewProps =
-    if(workspace.getPropertiesInterface != null) workspace.getPropertiesInterface
-    else new WorldPropertiesInterface { def fontSize = 10 }
-
   def currentlyVisibleRun: Option[Run] =
     Option(runList.getSelectedValue).map(_.asInstanceOf[Run])
-
-  def lastRun =
-    runListModel.get(runListModel.size - 1).asInstanceOf[Run]
 
   val annotations = new JTextArea(5, 50)
 
@@ -79,8 +62,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
     setPreferredSize(new Dimension(100, 100))
 
     private var currentRun: Option[Run] = None
-    def selectLastMaybe() =
-      if(getSelectedIndex == -1) setSelectedIndex(runListModel.size - 1)
+    def selectLastMaybe() = if(getSelectedIndex == -1) setSelectedIndex(runListModel.size - 1)
 
     this.getSelectionModel.addListSelectionListener(
       new ListSelectionListener {
@@ -92,7 +74,8 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
             }
             // change to the newly selected run.
             currentRun = Some(runListModel.get(list.getSelectedIndex).asInstanceOf[Run])
-            getToolkit.getSystemEventQueue.postEvent(new ClientAWTEvent(view, currentRun.get.handshake, true))
+            val handshake = HandshakeFromServer(currentRun.get.modelName, LogoList(currentRun.get.interface))
+            getToolkit.getSystemEventQueue.postEvent(new ClientAWTEvent(view, handshake, true))
             scrubber.setMaximum(currentRun.get.max)
             scrubber.setValue(currentRun.get.frameNumber)
             annotations.setText(currentRun.get.annotations)
