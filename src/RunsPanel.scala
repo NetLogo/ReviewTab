@@ -25,7 +25,7 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
   // it is constructed in completeLogin
   var runsGUI:RunsGUI = null
   var viewWidget:RunsView = null
-  private val plotManager = new PlotManager(new DummyLogoThunkFactory())
+  val plotManager = new PlotManager(new DummyLogoThunkFactory())
   // not yet used
   private var activityName: String = null
 
