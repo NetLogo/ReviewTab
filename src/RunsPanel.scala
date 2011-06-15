@@ -19,7 +19,7 @@ import org.nlogo.api.{WidgetIO, ModelSection, PlotInterface, DummyLogoThunkFacto
 // way to find out when a button was pressed or a slider (etc.)
 // moved, so we use events.  - ST 8/24/03
 class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerServices) extends JPanel with
-        org.nlogo.window.Events.AddSliderConstraintEvent.Handler {
+        org.nlogo.window.Events.AddSliderConstraintEvent.Handler with Replayer {
 
   // runsGUI contains an InterfacePanelLite, which contains all the widgets.
   // it is constructed in completeLogin
@@ -33,6 +33,13 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
     setBackground(java.awt.Color.white)
     setLayout(new java.awt.BorderLayout())
   }
+
+  def reset(){
+    viewWidget.world.reset()
+    plotManager.clearAll()
+  }
+
+  def advance(message:Message){ handleProtocolMessage(message) }
 
   // we probably don't need this for runs.
   def setDisplayOn(on: Boolean) { if (viewWidget != null) viewWidget.setDisplayOn(on) }

@@ -1,6 +1,5 @@
 package org.nlogo.review
 
-import java.awt.{ Dimension, BorderLayout }
 import javax.swing._
 import event.{ ListSelectionEvent, ListSelectionListener, ChangeEvent, ChangeListener }
 
@@ -14,6 +13,7 @@ import org.nlogo.window.GUIWorkspace
 import org.nlogo.hubnet.client.ClientAWTEvent
 import org.nlogo.api._
 import org.nlogo.hubnet.protocol.HandshakeFromServer
+import java.awt.{Component, Dimension, BorderLayout}
 
 class ReviewTab(workspace: GUIWorkspace) extends JPanel {
 
@@ -98,19 +98,35 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
         add(scrubber, BorderLayout.SOUTH)
       }, new JPanel{
         setLayout(new BorderLayout)
-        add(scroller(annotations), BorderLayout.CENTER)
-        add(new JPanel{
-          add(PimpedJButton("Save") { save() })
-          add(PimpedJButton("Load") { load() })
-          add(PimpedJButton("Discard") { discard() })
-          add(PimpedJButton("Discard All") { discardAll() })
-        }, BorderLayout.SOUTH)
+        add(new JPanel {
+          setLayout(new BorderLayout)
+          add(new JLabel("Notes"), BorderLayout.NORTH)
+          add(scroller(annotations), BorderLayout.CENTER)
+        }, BorderLayout.CENTER)
       }) {
       setOneTouchExpandable(true)
       setResizeWeight(1) // give the InterfacePanel all
     }, BorderLayout.CENTER)
 
-    add(scroller(runList), BorderLayout.WEST)
+    add(
+      new JPanel{
+        setLayout(new BorderLayout)
+        add(new JLabel("Runs"), BorderLayout.NORTH)
+        add(scroller(runList), BorderLayout.CENTER)
+        add(new JPanel{ pane =>
+          setLayout(new BoxLayout(pane, BoxLayout.Y_AXIS))
+          val saveButton = PimpedJButton("Save") { save() }
+          val loadButton = PimpedJButton("Load") { load() }
+          val discardButton = PimpedJButton("Discard") { discard() }
+          val discardAllButton = PimpedJButton("Discard All") { discardAll() }
+          for(b <- List(saveButton, loadButton, discardButton, discardAllButton)){
+            b.setAlignmentX(Component.CENTER_ALIGNMENT)
+            b.setPreferredSize(discardAllButton.getPreferredSize)
+            add(b)
+          }
+        }, BorderLayout.SOUTH)
+      },
+      BorderLayout.WEST)
     workspace.listenerManager.addListener(listener)
   }
 

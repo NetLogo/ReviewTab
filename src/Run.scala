@@ -29,6 +29,11 @@ object Run {
 @SerialVersionUID(0)
 case class Frame(tick:Int, diffs: Iterable[Message])
 
+trait Replayer {
+  def reset()
+  def advance(message: Message)
+}
+
 trait Run extends Serializable {
   var name: String
   var frameNumber:Int
@@ -40,16 +45,13 @@ trait Run extends Serializable {
 
   override def toString = name // since JList will display this to the user
   def max = frames.size - 1
-  def updateTo(newFrame:Int, view: RunsPanel){
+  def updateTo(newFrame:Int, replayer:Replayer){
     val oldFrame = frameNumber
     frameNumber = newFrame
     val resetWorld = oldFrame > newFrame
-    if (resetWorld) {
-      view.viewWidget.world.reset()
-      view.plotManager.clearAll()
-    }
+    if (resetWorld) { replayer.reset() }
     val slice = frames.slice(if (resetWorld) 0 else oldFrame + 1, newFrame + 1)
-    for (f <- slice; d <- f.diffs) view.handleProtocolMessage(d)
+    for (f <- slice; d <- f.diffs) replayer.advance(d)
   }
 }
 
