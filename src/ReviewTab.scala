@@ -20,10 +20,13 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
   var view = new RunsPanel(new org.nlogo.hubnet.client.EditorFactory(workspace), workspace)
 
   val scrubber = new JSlider{ slider =>
+    slider.setBorder(BorderFactory.createTitledBorder("Tick: N/A"))
     addChangeListener(new ChangeListener{
       def stateChanged(p1: ChangeEvent) {
         currentlyVisibleRun.foreach{ r =>
           invokeLater{() =>
+            slider.setToolTipText(slider.getValue.toString)
+            slider.setBorder(BorderFactory.createTitledBorder("Tick: " + slider.getValue))
             r.updateTo(slider.getValue, view)
             view.repaint()
           }
