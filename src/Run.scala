@@ -8,7 +8,7 @@ import org.nlogo.api.WidgetIO.{WidgetSpec, MonitorSpec, InterfaceGlobalWidgetSpe
 import org.nlogo.workspace.AbstractWorkspaceScala
 import scala.collection.JavaConverters._
 import org.nlogo.plot.{Plot, PlotListener}
-import org.nlogo.hubnet.mirroring.{HubNetPlotPoint, ServerWorld}
+import org.nlogo.hubnet.mirroring.{PlotPoint, ServerWorld}
 
 object Run {
   def finish(runs: Seq[Run]): Seq[FinishedRun] = for(r<-runs) yield r match {
@@ -140,7 +140,7 @@ class ActiveRun(var name: String, workspace: AbstractWorkspaceScala) extends Run
     def defaultAutoPlotOn(defaultAutoPlotOn: Boolean) { autoPlotOn(defaultAutoPlotOn) }
     def autoPlotOn(flag: Boolean) {  addPlotControl(if (flag) 'n' else 'f') }
     def plotPenMode(plotPenMode: Int) { addPlotControl(plotPenMode.toShort) }
-    def plot(x: Double, y: Double){ addPlotControl(new HubNetPlotPoint(x, y)) }
+    def plot(x: Double, y: Double){ addPlotControl(new PlotPoint(Some(x), y)) }
     def resetPen(hardReset: Boolean) { addPlotControl(if (hardReset) 'r' else 'p') }
     def penDown(flag: Boolean) { addPlotControl(flag) }
     def setHistogramNumBars(num: Int){ sys.error("implement me") }

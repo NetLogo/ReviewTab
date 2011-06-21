@@ -4,7 +4,7 @@ import javax.swing.JPanel
 import org.nlogo.agent.{ConstantSliderConstraint}
 import org.nlogo.plot.{Plot, PlotManager}
 import org.nlogo.window.Events.{AfterLoadEvent, LoadSectionEvent}
-import org.nlogo.hubnet.mirroring.{OverrideList, HubNetLinkStamp, HubNetPlotPoint, HubNetLine, HubNetTurtleStamp}
+import org.nlogo.hubnet.mirroring.{OverrideList, LinkStamp, PlotPoint, Line, TurtleStamp}
 import java.awt.AWTEvent
 import org.nlogo.hubnet.protocol._
 import org.nlogo.awt.Utils.{getFrame, invokeLater}
@@ -55,9 +55,9 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
   private def handleWidgetControlMessage(value: Any, widgetName: String) {
     org.nlogo.awt.Utils.mustBeEventDispatchThread()
     if (widgetName == "VIEW") value match {
-      case t: HubNetTurtleStamp => viewWidget.renderer.stamp(t)
-      case ls: HubNetLinkStamp => viewWidget.renderer.stamp(ls)
-      case l: HubNetLine => viewWidget.renderer.drawLine(l)
+      case t: TurtleStamp => viewWidget.renderer.stamp(t)
+      case ls: LinkStamp => viewWidget.renderer.stamp(ls)
+      case l: Line => viewWidget.renderer.drawLine(l)
       case _ => viewWidget.renderer.clearDrawing()
     }
     // i can't actually fathom who would have thought to do this this way
@@ -210,19 +210,20 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
       case s:String =>
         plotWidget.plot.currentPen=plotWidget.plot.getPen(s).getOrElse(plotWidget.plot.createPlotPen(s, true))
       // This instance sets the plot-pen-color
-      case i: Int => plotWidget.plot.currentPenOrBust.color=(i)
+      case i: Int =>
+        plotWidget.plot.currentPenOrBust.color=(i)
       // This instance sets plot-pen-up and down
       case b: Boolean =>
         plotWidget.plot.currentPenOrBust.isDown = b
         plotWidget.makeDirty()
         plotWidget.repaintIfNeeded()
       // This instance is a point to plot
-      case p: HubNetPlotPoint =>
+      case p: PlotPoint =>
         // points may or may not contain a specific X coordinate.
         // however, this is only the case in narrowcast plotting
         // plot mirroring always sends both coordinates even if
         // auto-plot is on. ev 8/18/08
-        if (p.specifiesXCor) plotWidget.plot.currentPenOrBust.plot(p.xcor, p.ycor)
+        if (p.xcor.isDefined) plotWidget.plot.currentPenOrBust.plot(p.xcor.get, p.ycor)
         // if not, we'll just let the plot use the next one.
         else plotWidget.plot.currentPenOrBust.plot(p.ycor)
         plotWidget.makeDirty()
