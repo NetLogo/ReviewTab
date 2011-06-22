@@ -28,11 +28,13 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
     Option(runList.getSelectedValue).map(_.asInstanceOf[Run])
 
   locally {
+    setPreferredSize(new Dimension(1000, 800))
     setLayout(new BorderLayout)
     add(new JSplitPane(
       JSplitPane.VERTICAL_SPLIT,
       true, // continuous layout as the user drags
       new JPanel() {
+        setPreferredSize(new Dimension(800, 500))
         setLayout(new BorderLayout)
         add(scroller(interface), BorderLayout.CENTER)
         add(scrubber, BorderLayout.SOUTH)
@@ -44,13 +46,17 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
           add(new JLabel("Notes"), BorderLayout.NORTH)
           add(scroller(notesTable), BorderLayout.CENTER)
           add(new JPanel(){
-            add(PimpedJButton("Add Note For Current Tick"){ notesTable.newNote() })
-            add(PimpedJButton("Add Note For Entire Run"){})
+            add(PimpedJButton("Add Note For Current Tick"){
+              notesTable.newNote(scrubber.getValue)
+            })
+            add(PimpedJButton("Add Note For Entire Run"){
+              notesTable.newNote(-1)
+            })
           }, BorderLayout.SOUTH)
         }, BorderLayout.CENTER)
       }) {
+      setResizeWeight(.8)
       setOneTouchExpandable(true)
-      setResizeWeight(.75)
     }, BorderLayout.CENTER)
 
     add(
@@ -198,8 +204,6 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
     locally{
       setModel(model)
 
-      //setPreferredSize(new Dimension(500, 250))
-
       setRowHeight(getRowHeight + 10)
       setGridColor(java.awt.Color.BLACK)
       setShowGrid(true)
@@ -207,18 +211,18 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
 
       tickColumn.setMaxWidth(50)
       notesColumn.setMinWidth(200)
+      buttonsColumn.setMaxWidth(80)
+      buttonsColumn.setMinWidth(40)
       buttonsColumn.setCellRenderer(new ButtonCellEditor)
       buttonsColumn.setCellEditor(new ButtonCellEditor)
       buttonsColumn.setHeaderValue("")
-      tickColumn.setMaxWidth(60)
-      tickColumn.setMinWidth(40)
     }
 
     def notes: List[Note] = model.notes.toList
     
     // add a dummy note to the list so that the user can then modify it.
-    def newNote() {
-      model.addNote(Note(tick = scrubber.getValue))
+    def newNote(tick: Int) {
+      model.addNote(Note(tick = tick))
     }
 
     // someone pressed the delete button in the notes row.
