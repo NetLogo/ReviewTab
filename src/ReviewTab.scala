@@ -126,6 +126,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
             slider.setToolTipText(slider.getValue.toString)
             slider.setBorder(BorderFactory.createTitledBorder("Tick: " + slider.getValue))
             r.updateTo(slider.getValue, interface)
+            notesTable.scrollTo(percent = slider.getValue / slider.getMaximum)
             interface.repaint()
           }
         }
@@ -199,6 +200,14 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
     def setTo(notes:List[Note]) {
       model.notes.clear();
       model.notes ++= notes
+    }
+
+    def scrollTo(percent:Double){
+      val rowIndex = (notes.size * percent).toInt
+      val cellRect = table.getCellRect(rowIndex, 0, false)
+      if (cellRect != null) {
+        table.scrollRectToVisible(cellRect)
+      }
     }
 
     locally{
