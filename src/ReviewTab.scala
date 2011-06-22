@@ -13,7 +13,8 @@ import org.nlogo.window.GUIWorkspace
 import org.nlogo.hubnet.client.ClientAWTEvent
 import org.nlogo.api._
 import org.nlogo.hubnet.protocol.HandshakeFromServer
-import java.awt.{Component, Dimension, BorderLayout}
+import table.{TableCellEditor, TableCellRenderer, DefaultTableCellRenderer, AbstractTableModel}
+import java.awt.{Dimension, Font, Component, BorderLayout}
 
 class ReviewTab(workspace: GUIWorkspace) extends JPanel {
 
@@ -57,7 +58,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
   def currentlyVisibleRun: Option[Run] =
     Option(runList.getSelectedValue).map(_.asInstanceOf[Run])
 
-  val annotations = new JTextArea(5, 50)
+  val notesTable = new NotesTable()
 
   val runListModel = new DefaultListModel()
   val runList = new JList { list =>
@@ -72,9 +73,10 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
       new ListSelectionListener {
         def valueChanged(p1: ListSelectionEvent) {
           if(list.getSelectedIndex != -1) {
-            // save the annotations on the previously selected run
+            // save the notesTable on the previously selected run
             currentRun.foreach{ r =>
-              r.annotations = annotations.getText
+              // TODO: set notes on run here!
+              r.notes = notesTable.notes
             }
             // change to the newly selected run.
             currentRun = Some(runListModel.get(list.getSelectedIndex).asInstanceOf[Run])
@@ -82,7 +84,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
             getToolkit.getSystemEventQueue.postEvent(new ClientAWTEvent(view, handshake, true))
             scrubber.setMaximum(currentRun.get.max)
             scrubber.setValue(currentRun.get.frameNumber)
-            annotations.setText(currentRun.get.annotations)
+            notesTable.setTo(currentRun.get.notes)
             currentRun.get.updateTo(currentRun.get.frameNumber, view)
             invokeLater { () =>
               scrubber.repaint()
@@ -105,7 +107,11 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
         add(new JPanel {
           setLayout(new BorderLayout)
           add(new JLabel("Notes"), BorderLayout.NORTH)
-          add(scroller(annotations), BorderLayout.CENTER)
+          add(scroller(notesTable), BorderLayout.CENTER)
+          add(new JPanel(){
+            add(PimpedJButton("Add Note For Current Tick"){ notesTable.newNote() })
+            add(PimpedJButton("Add Note For Entire Run"){})
+          }, BorderLayout.SOUTH)
         }, BorderLayout.CENTER)
       }) {
       setOneTouchExpandable(true)
@@ -137,7 +143,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
   // TODO: widgets also get added to the Interface tab!
   private def load() {
     ignoring(classOf[UserCancelException]) {
-      val path = FileDialog.show(this, "Open Runs", java.awt.FileDialog.LOAD, null)
+      val path = FileDialog.show(this, "Onote Runs", java.awt.FileDialog.LOAD, null)
       runListModel.clear()
       for (run <- Run.load(path))
         runListModel.addElement(run)
@@ -169,4 +175,135 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
                     ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
                     ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED)
 
+
+  class NotesTable extends JTable { table =>
+
+    val NotesColumnName = "Notes"
+    val TickColumnName = "Tick"
+    val ButtonsColumnName = "Buttons"
+    def notesColumn = getColumn(NotesColumnName)
+    def tickColumn = getColumn(TickColumnName)
+    def buttonsColumn = getColumn(ButtonsColumnName)
+
+    val model = new NotesTableModel()
+
+    def setTo(notes:List[Note]) {
+      model.notes.clear();
+      model.notes ++= notes
+    }
+
+    locally{
+      setModel(model)
+
+      setMinimumSize(new Dimension(300, 80))
+      setPreferredSize(new Dimension(350, 150))
+
+      setRowHeight(getRowHeight + 10)
+      setGridColor(java.awt.Color.BLACK)
+      setShowGrid(true)
+      setRowSelectionAllowed(false)
+
+      tickColumn.setMaxWidth(50)
+      notesColumn.setMinWidth(250)
+      buttonsColumn.setCellRenderer(new ButtonCellEditor)
+      buttonsColumn.setCellEditor(new ButtonCellEditor)
+      buttonsColumn.setHeaderValue("")
+      tickColumn.setMaxWidth(80)
+      tickColumn.setMinWidth(50)
+    }
+
+    def notes: List[Note] = model.notes.toList
+    
+    // add a dummy note to the list so that the user can then modify it.
+    def newNote() {
+      model.addNote(Note(tick = scrubber.getValue))
+    }
+
+    // someone pressed the delete button in the notes row.
+    def removeNote(index: Int) { model.removeNote(index) }
+
+    def openAdvancedNoteEditor(editingNote: Note) {
+//      val p = new NoteEditorAdvanced(editingNote)
+//      new org.nlogo.swing.Popup(frame, I18N.gui("editing") + " " + editingNote.name, p, (), {
+//        p.getResult match {
+//          case Some(p) =>
+//            model.notes(getSelectedRow) = p
+//            table.removeEditor()
+//            table.repaint()
+//            true
+//          case _ => false
+//        }
+//      }, I18N.gui.get _).show()
+    }
+
+    // renders the delete and edit buttons for each column
+    class ButtonCellEditor extends AbstractCellEditor with TableCellRenderer with TableCellEditor {
+      val editButton = PimpedJButton(new javax.swing.ImageIcon(getClass.getResource("/images/edit.gif"))) {
+        openAdvancedNoteEditor(model.notes(getSelectedRow))
+      }
+      val deleteButton = PimpedJButton(new javax.swing.ImageIcon(getClass.getResource("/images/delete.gif"))) {
+        val index = getSelectedRow
+        removeEditor()
+        clearSelection()
+        removeNote(index)
+      }
+      editButton.putClientProperty("JComponent.sizeVariant", "small")
+      deleteButton.putClientProperty("JComponent.sizeVariant", "small")
+      val buttonPanel = new JPanel {add(editButton); add(deleteButton)}
+      def getTableCellRendererComponent(table: JTable, value: Object,
+                                        isSelected: Boolean, hasFocus: Boolean,
+                                        row: Int, col: Int) = buttonPanel
+      def getTableCellEditorComponent(table: JTable, value: Object,
+                                      isSelected: Boolean, row: Int, col: Int) = buttonPanel
+      def getCellEditorValue = ""
+    }
+
+    class NotesTableModel extends AbstractTableModel {
+      val columnNames = scala.List(TickColumnName, NotesColumnName, ButtonsColumnName)
+      val notes = scala.collection.mutable.ListBuffer[Note]()
+
+      override def getColumnCount = columnNames.length
+      override def getRowCount = notes.length
+      override def getColumnName(col: Int) = columnNames(col)
+      override def isCellEditable(row: Int, col: Int) = true
+
+      override def getValueAt(row: Int, col: Int) = {
+        val n = notes(row)
+        columnNames(col) match {
+          case TickColumnName => n.tick.asInstanceOf[AnyRef]
+          case NotesColumnName => n.text
+          case _ => None
+        }
+      }
+      override def getColumnClass(c: Int) = {
+        columnNames(c) match {
+          //case TickColumnName => classOf[Int]
+          case _ => classOf[String]
+        }
+      }
+      override def setValueAt(value: Object, row: Int, col: Int) {
+        if (row < notes.size) {
+          val p = notes(row)
+          columnNames(col) match {
+//            case TickColumnName => notes(row) = p.copy(tick = value.asInstanceOf[String])
+            case NotesColumnName => notes(row) = p.copy(text = value.asInstanceOf[String])
+            case _ =>
+          }
+          fireTableCellUpdated(row, col)
+        }
+      }
+
+      def addNote(n: Note) {notes += n; fireTableDataChanged()}
+
+      def removeNote(index: Int) {
+        if (index != -1) {
+          notes.remove(index)
+          fireTableRowsDeleted(index, index)
+          removeEditor()
+          revalidate()
+          repaint()
+        }
+      }
+    }
+  }
 }

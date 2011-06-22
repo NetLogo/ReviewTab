@@ -34,12 +34,14 @@ trait Replayer {
   def advance(message: Message)
 }
 
+case class Note(tick:Int, text:String="")
+
 trait Run extends Serializable {
   var name: String
   var frameNumber:Int
   val modelName: String
   val interface: ClientInterface
-  var annotations:String
+  var notes:List[Note]
 
   protected val frames: ArrayBuffer[Frame]
 
@@ -62,13 +64,13 @@ case class FinishedRun(
   interface: ClientInterface,
   frames: ArrayBuffer[Frame],
   var frameNumber:Int,
-  var annotations:String) extends Run
+  var notes:List[Note]) extends Run
 
 class ActiveRun(var name: String, workspace: AbstractWorkspaceScala) extends Run {
 
   val frames = ArrayBuffer[Frame]()
   var frameNumber:Int = 0
-  var annotations:String = ""
+  var notes:List[Note] = Nil
 
   val modelName = workspace.modelNameForDisplay
   val interface = new ClientInterface(
@@ -126,7 +128,7 @@ class ActiveRun(var name: String, workspace: AbstractWorkspaceScala) extends Run
     }
   }
 
-  def finish = FinishedRun(name, modelName, interface, frames, frameNumber, annotations)
+  def finish = FinishedRun(name, modelName, interface, frames, frameNumber, notes)
 
   case class MyPlotListener(plot:Plot) extends PlotListener {
     plot.plotListener = Some(this)
