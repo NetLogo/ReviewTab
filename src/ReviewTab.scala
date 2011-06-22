@@ -18,80 +18,14 @@ import java.awt.{Dimension, Font, Component, BorderLayout}
 
 class ReviewTab(workspace: GUIWorkspace) extends JPanel {
 
-  var view = new RunsPanel(new org.nlogo.hubnet.client.EditorFactory(workspace), workspace)
-
-  val scrubber = new JSlider{ slider =>
-    slider.setBorder(BorderFactory.createTitledBorder("Tick: N/A"))
-    addChangeListener(new ChangeListener{
-      def stateChanged(p1: ChangeEvent) {
-        currentlyVisibleRun.foreach{ r =>
-          invokeLater{() =>
-            slider.setToolTipText(slider.getValue.toString)
-            slider.setBorder(BorderFactory.createTitledBorder("Tick: " + slider.getValue))
-            r.updateTo(slider.getValue, view)
-            view.repaint()
-          }
-        }
-      }
-    })
-  }
-
-  val listener = new NetLogoAdapter {
-    val count = Iterator.from(0)
-    override def tickCounterChanged(ticks: Double) {
-      if(ticks == 0) {
-        val newRun = new ActiveRun("run " + count.next(), workspace)
-        runListModel.addElement(newRun)
-        //runList.selectLastMaybe()
-      }
-
-      // TODO: this somehow doesn't work if you remove the last element.
-      val lastRun = runListModel.lastElement().asInstanceOf[ActiveRun]
-      lastRun.addFrame()
-
-      for(r <- currentlyVisibleRun)
-        if(r eq lastRun)
-          scrubber.setMaximum(r.max)
-    }
-  }
+  val runList = new RunList()
+  var interface = new RunsPanel(new org.nlogo.hubnet.client.EditorFactory(workspace), workspace)
+  val scrubber = new Scrubber()
+  val notesTable = new NotesTable()
+  val listener = new TickListener()
 
   def currentlyVisibleRun: Option[Run] =
     Option(runList.getSelectedValue).map(_.asInstanceOf[Run])
-
-  val notesTable = new NotesTable()
-
-  val runListModel = new DefaultListModel()
-  val runList = new JList { list =>
-    setModel(runListModel)
-    setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
-    setPreferredSize(new Dimension(100, 100))
-
-    private var currentRun: Option[Run] = None
-    def selectLastMaybe() = if(getSelectedIndex == -1) setSelectedIndex(runListModel.size - 1)
-
-    this.getSelectionModel.addListSelectionListener(
-      new ListSelectionListener {
-        def valueChanged(p1: ListSelectionEvent) {
-          if(list.getSelectedIndex != -1) {
-            // save the notesTable on the previously selected run
-            currentRun.foreach{ r =>
-              // TODO: set notes on run here!
-              r.notes = notesTable.notes
-            }
-            // change to the newly selected run.
-            currentRun = Some(runListModel.get(list.getSelectedIndex).asInstanceOf[Run])
-            val handshake = HandshakeFromServer(currentRun.get.modelName, LogoList(currentRun.get.interface))
-            getToolkit.getSystemEventQueue.postEvent(new ClientAWTEvent(view, handshake, true))
-            scrubber.setMaximum(currentRun.get.max)
-            scrubber.setValue(currentRun.get.frameNumber)
-            notesTable.setTo(currentRun.get.notes)
-            currentRun.get.updateTo(currentRun.get.frameNumber, view)
-            invokeLater { () =>
-              scrubber.repaint()
-              view.repaint()
-            }
-          }}})
-  }
 
   locally {
     setLayout(new BorderLayout)
@@ -100,9 +34,10 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
       true, // continuous layout as the user drags
       new JPanel() {
         setLayout(new BorderLayout)
-        add(scroller(view), BorderLayout.CENTER)
+        add(scroller(interface), BorderLayout.CENTER)
         add(scrubber, BorderLayout.SOUTH)
-      }, new JPanel{
+      },
+      new JPanel{
         setLayout(new BorderLayout)
         add(new JPanel {
           setLayout(new BorderLayout)
@@ -115,7 +50,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
         }, BorderLayout.CENTER)
       }) {
       setOneTouchExpandable(true)
-      setResizeWeight(1) // give the InterfacePanel all
+      setResizeWeight(.75)
     }, BorderLayout.CENTER)
 
     add(
@@ -143,31 +78,31 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
   // TODO: widgets also get added to the Interface tab!
   private def load() {
     ignoring(classOf[UserCancelException]) {
-      val path = FileDialog.show(this, "Onote Runs", java.awt.FileDialog.LOAD, null)
-      runListModel.clear()
+      val path = FileDialog.show(this, "Open Runs", java.awt.FileDialog.LOAD, null)
+      runList.model.clear()
       for (run <- Run.load(path))
-        runListModel.addElement(run)
-      if(runListModel.size > 0) runList.setSelectedIndex(0)
+        runList.model.addElement(run)
+      if(runList.model.size > 0) runList.setSelectedIndex(0)
     }
   }
 
   private def save() {
     ignoring(classOf[UserCancelException]) {
       val path = FileDialog.show(this, "Save Runs", java.awt.FileDialog.SAVE, "runs.dat")
-      Run.save(path, (0 until runListModel.size).map(n => runListModel.get(n).asInstanceOf[Run]))
+      Run.save(path, (0 until runList.model.size).map(n => runList.model.get(n).asInstanceOf[Run]))
     }
   }
 
   // TODO: BROKEN
   private def discard() {
     if(! runList.isSelectionEmpty){
-      runListModel.remove(runList.getSelectedIndex)
+      runList.model.remove(runList.getSelectedIndex)
     }
   }
 
   // TODO: Discards all, but doesn't clear the view. 
   private def discardAll() {
-    runListModel.clear()
+    runList.model.clear()
   }
 
   private def scroller(c: java.awt.Component) =
@@ -175,6 +110,74 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
                     ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
                     ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED)
 
+
+  class Scrubber extends JSlider{ slider =>
+    slider.setBorder(BorderFactory.createTitledBorder("Tick: N/A"))
+    addChangeListener(new ChangeListener{
+      def stateChanged(p1: ChangeEvent) {
+        currentlyVisibleRun.foreach{ r =>
+          invokeLater{() =>
+            slider.setToolTipText(slider.getValue.toString)
+            slider.setBorder(BorderFactory.createTitledBorder("Tick: " + slider.getValue))
+            r.updateTo(slider.getValue, interface)
+            interface.repaint()
+          }
+        }
+      }
+    })
+  }
+
+  class TickListener extends NetLogoAdapter {
+    val count = Iterator.from(0)
+    override def tickCounterChanged(ticks: Double) {
+      if (ticks == 0) {
+        val newRun = new ActiveRun("run " + count.next(), workspace)
+        runList.model.addElement(newRun)
+        //runList.selectLastMaybe()
+      }
+
+      // TODO: this somehow doesn't work if you remove the last element.
+      val lastRun = runList.model.lastElement().asInstanceOf[ActiveRun]
+      lastRun.addFrame()
+
+      for (r <- currentlyVisibleRun)
+        if (r eq lastRun)
+          scrubber.setMaximum(r.max)
+    }
+  }
+
+  class RunList extends JList { list =>
+    val model = new DefaultListModel()
+    setModel(model)
+    setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
+    setPreferredSize(new Dimension(100, 100))
+
+    private var currentRun: Option[Run] = None
+    def selectLastMaybe() { if(getSelectedIndex == -1) setSelectedIndex(model.size - 1) }
+
+    this.getSelectionModel.addListSelectionListener(
+      new ListSelectionListener {
+        def valueChanged(p1: ListSelectionEvent) {
+          if(list.getSelectedIndex != -1) {
+            // save the notesTable on the previously selected run
+            currentRun.foreach{ r =>
+              // TODO: set notes on run here!
+              r.notes = notesTable.notes
+            }
+            // change to the newly selected run.
+            currentRun = Some(model.get(list.getSelectedIndex).asInstanceOf[Run])
+            val handshake = HandshakeFromServer(currentRun.get.modelName, LogoList(currentRun.get.interface))
+            getToolkit.getSystemEventQueue.postEvent(new ClientAWTEvent(interface, handshake, true))
+            scrubber.setMaximum(currentRun.get.max)
+            scrubber.setValue(currentRun.get.frameNumber)
+            notesTable.setTo(currentRun.get.notes)
+            currentRun.get.updateTo(currentRun.get.frameNumber, interface)
+            invokeLater { () =>
+              scrubber.repaint()
+              interface.repaint()
+            }
+          }}})
+  }
 
   class NotesTable extends JTable { table =>
 
@@ -195,8 +198,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
     locally{
       setModel(model)
 
-      setMinimumSize(new Dimension(300, 80))
-      setPreferredSize(new Dimension(350, 150))
+      //setPreferredSize(new Dimension(500, 250))
 
       setRowHeight(getRowHeight + 10)
       setGridColor(java.awt.Color.BLACK)
@@ -204,12 +206,12 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
       setRowSelectionAllowed(false)
 
       tickColumn.setMaxWidth(50)
-      notesColumn.setMinWidth(250)
+      notesColumn.setMinWidth(200)
       buttonsColumn.setCellRenderer(new ButtonCellEditor)
       buttonsColumn.setCellEditor(new ButtonCellEditor)
       buttonsColumn.setHeaderValue("")
-      tickColumn.setMaxWidth(80)
-      tickColumn.setMinWidth(50)
+      tickColumn.setMaxWidth(60)
+      tickColumn.setMinWidth(40)
     }
 
     def notes: List[Note] = model.notes.toList
@@ -265,7 +267,10 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
       override def getColumnCount = columnNames.length
       override def getRowCount = notes.length
       override def getColumnName(col: Int) = columnNames(col)
-      override def isCellEditable(row: Int, col: Int) = true
+      override def isCellEditable(row: Int, col: Int) = {
+        if(col == columnNames.indexOf(TickColumnName)) false
+        else true
+      }
 
       override def getValueAt(row: Int, col: Int) = {
         val n = notes(row)
@@ -277,7 +282,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
       }
       override def getColumnClass(c: Int) = {
         columnNames(c) match {
-          //case TickColumnName => classOf[Int]
+          case TickColumnName => classOf[java.lang.Integer]
           case _ => classOf[String]
         }
       }
@@ -285,7 +290,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
         if (row < notes.size) {
           val p = notes(row)
           columnNames(col) match {
-//            case TickColumnName => notes(row) = p.copy(tick = value.asInstanceOf[String])
+            case TickColumnName => notes(row) = p.copy(tick = value.asInstanceOf[String].toInt)
             case NotesColumnName => notes(row) = p.copy(text = value.asInstanceOf[String])
             case _ =>
           }
