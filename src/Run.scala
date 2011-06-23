@@ -34,7 +34,9 @@ trait Replayer {
   def advance(message: Message)
 }
 
-case class Note(tick:Int, text:String="")
+case class Note(tick:Int, text:String="") extends Ordered[Note] {
+  def compare(that:Note) = tick.compareTo(that.tick)
+}
 
 trait Run extends Serializable {
   var name: String

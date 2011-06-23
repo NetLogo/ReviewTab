@@ -126,7 +126,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
             slider.setToolTipText(slider.getValue.toString)
             slider.setBorder(BorderFactory.createTitledBorder("Tick: " + slider.getValue))
             r.updateTo(slider.getValue, interface)
-            notesTable.scrollTo(percent = slider.getValue / slider.getMaximum)
+            notesTable.scrollTo(tick = slider.getValue)
             interface.repaint()
           }
         }
@@ -202,11 +202,11 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
       model.notes ++= notes
     }
 
-    def scrollTo(percent:Double){
-      val rowIndex = (notes.size * percent).toInt
-      val cellRect = table.getCellRect(rowIndex, 0, false)
-      if (cellRect != null) {
-        table.scrollRectToVisible(cellRect)
+    def scrollTo(tick:Int){
+      val rowIndex = notes.indexWhere(_.tick == tick)
+      println(rowIndex)
+      if(rowIndex != -1) {
+        table.scrollRectToVisible(table.getCellRect(rowIndex, 0, false))
       }
     }
 
@@ -275,7 +275,7 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
 
     class NotesTableModel extends AbstractTableModel {
       val columnNames = scala.List(TickColumnName, NotesColumnName, ButtonsColumnName)
-      val notes = scala.collection.mutable.ListBuffer[Note]()
+      var notes = scala.collection.mutable.ListBuffer[Note]()
 
       override def getColumnCount = columnNames.length
       override def getRowCount = notes.length
@@ -311,7 +311,11 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
         }
       }
 
-      def addNote(n: Note) {notes += n; fireTableDataChanged()}
+      def addNote(n: Note) {
+        notes += n;
+        notes = notes.sorted
+        fireTableDataChanged()
+      }
 
       def removeNote(index: Int) {
         if (index != -1) {
