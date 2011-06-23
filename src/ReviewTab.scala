@@ -204,10 +204,8 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
 
     def scrollTo(tick:Int){
       val rowIndex = notes.indexWhere(_.tick == tick)
-      println(rowIndex)
-      if(rowIndex != -1) {
+      if(rowIndex != -1)
         table.scrollRectToVisible(table.getCellRect(rowIndex, 0, false))
-      }
     }
 
     locally{
