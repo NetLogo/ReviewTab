@@ -4,7 +4,7 @@ import javax.swing._
 import event.{ ListSelectionEvent, ListSelectionListener, ChangeEvent, ChangeListener }
 
 import org.nlogo.awt.UserCancelException
-import org.nlogo.awt.Utils.invokeLater
+import org.nlogo.awt.EventQueue.invokeLater
 import org.nlogo.swing.FileDialog
 import org.nlogo.swing.Implicits._
 import org.nlogo.swing.PimpedJButton

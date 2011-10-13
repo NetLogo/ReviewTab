@@ -90,7 +90,7 @@ class RunsView extends Widget with ViewWidgetInterface with ViewSettings {
   def viewOffsetX = world.followOffsetX
   def viewOffsetY = world.followOffsetY
   def renderPerspective = true
-  def drawSpotlight = world.serverMode() || (world.perspective != Perspective.FOLLOW)
+  def drawSpotlight = world.serverMode() || (world.perspective != Perspective.Follow)
   override def save: String = throw new UnsupportedOperationException()
   def asWidget: Widget = this
   def getAdditionalHeight = 0

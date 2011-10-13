@@ -3,12 +3,12 @@ package org.nlogo.review
 import javax.swing.JPanel
 import org.nlogo.agent.{ConstantSliderConstraint}
 import org.nlogo.plot.{Plot, PlotManager}
-import org.nlogo.window.Events.{AfterLoadEvent, LoadSectionEvent}
+import org.nlogo.window.Events.LoadSectionEvent
 import org.nlogo.hubnet.mirroring.{OverrideList, LinkStamp, PlotPoint, Line, TurtleStamp}
 import java.awt.AWTEvent
 import org.nlogo.hubnet.protocol._
-import org.nlogo.awt.Utils.{getFrame, invokeLater}
-import org.nlogo.util.JCL._
+import org.nlogo.awt.EventQueue.invokeLater
+import org.nlogo.awt.Hierarchy.getFrame
 import org.nlogo.window.{MonitorWidget, InterfaceGlobalWidget, Widget, PlotWidget}
 import org.nlogo.swing.Implicits._
 import org.nlogo.hubnet.client.{ClientAWTEvent, ClientAWTExceptionEvent}
@@ -53,7 +53,7 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
 
   /// Message Handlers
   private def handleWidgetControlMessage(value: Any, widgetName: String) {
-    org.nlogo.awt.Utils.mustBeEventDispatchThread()
+    org.nlogo.awt.EventQueue.mustBeEventDispatchThread()
     if (widgetName == "VIEW") value match {
       case t: TurtleStamp => viewWidget.renderer.stamp(t)
       case ls: LinkStamp => viewWidget.renderer.stamp(ls)
@@ -106,11 +106,13 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
     // Fire a LSE so that the InterfacePanelLite in runsGUI can load the widgets.
     // using "Review" as version argument so that the InterfacePanel in the Interface tab
     // knows not to also load these widgets. 
-    new LoadSectionEvent("Review", ModelSection.WIDGETS, widgets.toArray, widgets.mkString("\n")).raise(this)
+    new LoadSectionEvent("Review", ModelSection.Interface, widgets.toArray, widgets.mkString("\n")).raise(this)
     
     runsGUI.setChoices(clientInterface.chooserChoices(compiler).toMap)
-    viewWidget.renderer.replaceTurtleShapes(toJavaList(clientInterface.turtleShapes))
-    viewWidget.renderer.replaceLinkShapes(toJavaList(clientInterface.linkShapes))
+    viewWidget.renderer.replaceTurtleShapes(
+      scala.collection.JavaConversions.seqAsJavaList(clientInterface.turtleShapes.toSeq))
+    viewWidget.renderer.replaceLinkShapes(
+      scala.collection.JavaConversions.seqAsJavaList(clientInterface.linkShapes.toSeq))
     invokeLater(() => {
       getFrame(RunsPanel.this).pack()
       // in robo fixture, this generated exceptions now and again
@@ -136,7 +138,7 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
 
   // TODO: We get in
   private def handleEx(e: Exception, sendingEx: Boolean) {
-    org.nlogo.awt.Utils.mustBeEventDispatchThread()
+    org.nlogo.awt.EventQueue.mustBeEventDispatchThread()
     e.printStackTrace()
   }
 
@@ -144,7 +146,7 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
   // no reason to think the message wouldnt be a Message object.
   // if it is, we have a coding error. 
   private def receiveData(a: Any): Unit = {
-    org.nlogo.awt.Utils.mustBeEventDispatchThread()
+    org.nlogo.awt.EventQueue.mustBeEventDispatchThread()
     a match {
       case m: Message => handleProtocolMessage(m)
     }
@@ -203,7 +205,7 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
 
   // this is the master method for handling plot messages. it should probably be redone.
   private def handlePlotControlMessage(value: Any, plotName:String) {
-    org.nlogo.awt.Utils.mustBeEventDispatchThread()
+    org.nlogo.awt.EventQueue.mustBeEventDispatchThread()
     val plotWidget = findWidget(plotName).asInstanceOf[Option[PlotWidget]].get // horrible.
     value match {
       // This instance sets the current-plot-pen
@@ -211,10 +213,10 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
         plotWidget.plot.currentPen=plotWidget.plot.getPen(s).getOrElse(plotWidget.plot.createPlotPen(s, true))
       // This instance sets the plot-pen-color
       case i: Int =>
-        plotWidget.plot.currentPenOrBust.color=(i)
+        plotWidget.plot.currentPen.get.color=(i)
       // This instance sets plot-pen-up and down
       case b: Boolean =>
-        plotWidget.plot.currentPenOrBust.isDown = b
+        plotWidget.plot.currentPen.get.isDown = b
         plotWidget.makeDirty()
         plotWidget.repaintIfNeeded()
       // This instance is a point to plot
@@ -223,9 +225,9 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
         // however, this is only the case in narrowcast plotting
         // plot mirroring always sends both coordinates even if
         // auto-plot is on. ev 8/18/08
-        if (p.xcor.isDefined) plotWidget.plot.currentPenOrBust.plot(p.xcor.get, p.ycor)
+        if (p.xcor.isDefined) plotWidget.plot.currentPen.get.plot(p.xcor.get, p.ycor)
         // if not, we'll just let the plot use the next one.
-        else plotWidget.plot.currentPenOrBust.plot(p.ycor)
+        else plotWidget.plot.currentPen.get.plot(p.ycor)
         plotWidget.makeDirty()
         plotWidget.repaintIfNeeded()
       // These instances do various plotting commands
@@ -236,11 +238,11 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
             plotWidget.makeDirty()
             plotWidget.repaintIfNeeded()
           case 'r' =>
-            plotWidget.plot.currentPenOrBust.hardReset()
+            plotWidget.plot.currentPen.get.hardReset()
             plotWidget.makeDirty()
             plotWidget.repaintIfNeeded()
           case 'p' =>
-            plotWidget.plot.currentPenOrBust.softReset()
+            plotWidget.plot.currentPen.get.softReset()
             plotWidget.makeDirty()
             plotWidget.repaintIfNeeded()
           case 'n' =>
@@ -252,11 +254,11 @@ class RunsPanel(editorFactory:org.nlogo.window.EditorFactory, compiler:CompilerS
       }
       // This instance changes the plot-pen-mode
       case s:Short =>
-        plotWidget.plot.currentPenOrBust.mode = s.toInt
+        plotWidget.plot.currentPen.get.mode = s.toInt
         plotWidget.makeDirty()
         plotWidget.repaintIfNeeded()
       // This instance changes the plot-pen-interval
-      case d:Double => plotWidget.plot.currentPenOrBust.interval = d
+      case d:Double => plotWidget.plot.currentPen.get.interval = d
       // This instance is used for anything that has a lot of data
       case list: List[_] => list(0) match {
         case 'x' =>
