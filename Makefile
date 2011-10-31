@@ -16,6 +16,6 @@ ReviewTab.jar: $(SRCS) manifest.txt
 ReviewTab.zip: ReviewTab.jar
 	rm -rf ReviewTab
 	mkdir ReviewTab
-	cp -rp ReviewTab.jar README.md Makefile manifest.txt src ReviewTab
+	cp -rp ReviewTab.jar README.md Makefile manifest.txt GPL-2.txt src ReviewTab
 	zip -rv ReviewTab.zip ReviewTab
 	rm -rf ReviewTab
