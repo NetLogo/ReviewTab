@@ -3,7 +3,7 @@ ifeq ($(origin NETLOGO), undefined)
 endif
 
 ifeq ($(origin SCALA_HOME), undefined)
-  SCALA_HOME=/usr/local/scala-2.9.0.1
+  SCALA_HOME=/usr/local/scala-2.9.1
 endif
 
 SRCS=$(wildcard src/*.scala)

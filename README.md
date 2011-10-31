@@ -2,11 +2,11 @@
 
 Adds a fourth tab, "Review", for recording and replaying model runs.
 
-Requires NetLogo 5.0beta4 (coming soon).
+Requires the special "abmplus" branch of NetLogo 5.0.  Does not work with stock NetLogo distribution.
 
 ## Building
 
-Move the ReviewTab directory to your 5.0beta4 plugins directory.
+Move the ReviewTab directory to your plugins directory.
 
 Change to the ReviewTab directory and run `make`.
 
@@ -18,15 +18,11 @@ After building, restart NetLogo and the new tab should appear.
 
 ## About the source code
 
-BehaviorSpace is written in the Scala programming language. Scala code
-compiles to Java byte code and is fully interoperable with Java and
-other JVM languages.
+BehaviorSpace is written in the Scala programming language. Scala code compiles to Java byte code and is fully interoperable with Java and other JVM languages.
 
-Make sure you are using Scala 2.9.0.1.
+Make sure you are using Scala 2.9.1.
 
-The Makefile expects to find the unzipped Scala distribution directory
-at /usr/local/scala-2.9.0.1.  You can override this with the
-SCALA_HOME environment variable.
+The Makefile expects to find the unzipped Scala distribution directory at `/usr/local/scala-2.9.1.final`.  You can override this with the SCALA_HOME environment variable.
 
 ## Terms of use
 
