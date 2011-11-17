@@ -7,7 +7,7 @@ import org.nlogo.awt.UserCancelException
 import org.nlogo.awt.EventQueue.invokeLater
 import org.nlogo.swing.FileDialog
 import org.nlogo.swing.Implicits._
-import org.nlogo.swing.PimpedJButton
+import org.nlogo.swing.RichJButton
 import org.nlogo.util.Exceptions.ignoring
 import org.nlogo.window.GUIWorkspace
 import org.nlogo.hubnet.client.ClientAWTEvent
@@ -46,10 +46,10 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
           add(new JLabel("Notes"), BorderLayout.NORTH)
           add(scroller(notesTable), BorderLayout.CENTER)
           add(new JPanel(){
-            add(PimpedJButton("Add Note For Current Tick"){
+            add(RichJButton("Add Note For Current Tick"){
               notesTable.newNote(scrubber.getValue)
             })
-            add(PimpedJButton("Add Note For Entire Run"){
+            add(RichJButton("Add Note For Entire Run"){
               notesTable.newNote(-1)
             })
           }, BorderLayout.SOUTH)
@@ -66,10 +66,10 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
         add(scroller(runList), BorderLayout.CENTER)
         add(new JPanel{ pane =>
           setLayout(new BoxLayout(pane, BoxLayout.Y_AXIS))
-          val saveButton = PimpedJButton("Save") { save() }
-          val loadButton = PimpedJButton("Load") { load() }
-          val discardButton = PimpedJButton("Discard") { discard() }
-          val discardAllButton = PimpedJButton("Discard All") { discardAll() }
+          val saveButton = RichJButton("Save") { save() }
+          val loadButton = RichJButton("Load") { load() }
+          val discardButton = RichJButton("Discard") { discard() }
+          val discardAllButton = RichJButton("Discard All") { discardAll() }
           for(b <- List(saveButton, loadButton, discardButton, discardAllButton)){
             b.setAlignmentX(Component.CENTER_ALIGNMENT)
             b.setPreferredSize(discardAllButton.getPreferredSize)
@@ -251,10 +251,10 @@ class ReviewTab(workspace: GUIWorkspace) extends JPanel {
 
     // renders the delete and edit buttons for each column
     class ButtonCellEditor extends AbstractCellEditor with TableCellRenderer with TableCellEditor {
-      val editButton = PimpedJButton(new javax.swing.ImageIcon(getClass.getResource("/images/edit.gif"))) {
+      val editButton = RichJButton(new javax.swing.ImageIcon(getClass.getResource("/images/edit.gif"))) {
         openAdvancedNoteEditor(model.notes(getSelectedRow))
       }
-      val deleteButton = PimpedJButton(new javax.swing.ImageIcon(getClass.getResource("/images/delete.gif"))) {
+      val deleteButton = RichJButton(new javax.swing.ImageIcon(getClass.getResource("/images/delete.gif"))) {
         val index = getSelectedRow
         removeEditor()
         clearSelection()
