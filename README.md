@@ -2,15 +2,17 @@
 
 Adds a fourth tab, "Review", for recording and replaying model runs.
 
-Requires the `abmplus` branch of NetLogo 5.0.x.  Does not work with stock NetLogo distribution.
-
 ## Development status
+
+Abandoned, but a replacement is in progress.
 
 See https://github.com/NetLogo/NetLogo/wiki/Model-runs for current info on this work.
 Development on the code in this plugin has been abandoned but we're building something very similar
 on the `modelruns` branch in the main NetLogo repo, for planned inclusion in NetLogo 5.1.
 
 ## Building
+
+Requires the `abmplus` branch of NetLogo 5.0.x.  Does not work with stock NetLogo distribution.
 
 If you build the abmplus branch, the contents of this repository will be downloaded and built for you.
 
